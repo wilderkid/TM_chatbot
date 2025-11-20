@@ -17,6 +17,32 @@
     'use strict';
 
     // 配置管理
+    // Trusted Types 策略支持
+    let ttPolicy;
+    if (window.trustedTypes && window.trustedTypes.createPolicy) {
+        try {
+            ttPolicy = window.trustedTypes.createPolicy('ai-chat-sidebar-policy', {
+                createHTML: (string) => string
+            });
+        } catch (e) {
+            console.warn('Failed to create Trusted Types policy:', e);
+        }
+    }
+
+    const safeInnerHTML = (element, html, fallbackText) => {
+        if (!element) return;
+        try {
+            if (ttPolicy) {
+                element.innerHTML = ttPolicy.createHTML(html);
+            } else {
+                element.innerHTML = html;
+            }
+        } catch (e) {
+            console.warn('innerHTML assignment failed:', e);
+            element.textContent = fallbackText !== undefined ? fallbackText : html;
+        }
+    };
+
     const ConfigManager = {
         get: (key, defaultValue) => GM_getValue(key, defaultValue),
         set: (key, value) => GM_setValue(key, value),
@@ -34,62 +60,211 @@
     const createSidebar = () => {
         const sidebar = document.createElement('div');
         sidebar.id = 'ai-chat-sidebar';
-        sidebar.innerHTML = `
-            <div class="resize-handle-left"></div>
-            <div class="resize-handle-right"></div>
-            <div class="resize-handle-top"></div>
-            <div class="resize-handle-bottom"></div>
-            <div class="resize-handle-corner-tl"></div>
-            <div class="resize-handle-corner-tr"></div>
-            <div class="resize-handle-corner-bl"></div>
-            <div class="resize-handle-corner-br"></div>
-            <div class="sidebar-header">
-                <div class="tabs" id="tabs-container">
-                    <button class="tab active" data-tab="chat">对话</button>
-                    <button class="tab" data-tab="providers">AI提供商</button>
-                    <button class="tab" data-tab="prompts">提示词库</button>
-                </div>
-                <button class="close-btn">×</button>
-            </div>
-            <div class="sidebar-content">
-                <div class="tab-content active" id="chat-tab">
-                    <div class="model-selector">
-                        <button id="model-display-btn">
-                            <span id="model-name">选择模型</span>
-                            <span class="arrow">▼</span>
-                        </button>
-                        <div id="model-dropdown" class="model-dropdown" style="display:none;"></div>
-                    </div>
-                    <div class="messages" id="messages"></div>
-                    <div class="input-area">
-                        <div class="input-wrapper">
-                            <button id="prompt-selector-btn" class="prompt-icon-top" title="选择提示词">💡</button>
-                            <textarea id="user-input" placeholder="输入消息..."></textarea>
-                        </div>
-                        <button id="send-btn">发送</button>
-                        <div id="prompt-dropdown" class="prompt-dropdown" style="display:none;"></div>
-                    </div>
-                </div>
-                <div class="tab-content" id="providers-tab">
-                    <div class="providers-container">
-                        <div class="providers-sidebar">
-                            <button id="add-provider-btn">+ 添加供应商</button>
-                            <div class="providers-list" id="providers-sidebar-list"></div>
-                        </div>
-                        <div class="provider-detail" id="provider-detail">
-                            <div class="empty-state">请选择或添加一个供应商</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="tab-content" id="prompts-tab">
-                    <div class="prompts-toolbar">
-                        <button id="add-prompt">+ 新增</button>
-                        <button id="batch-delete-prompt">批量删除</button>
-                    </div>
-                    <div class="prompts-list" id="prompts-list"></div>
-                </div>
-            </div>
-        `;
+
+        // 创建调整大小的手柄
+        ['left', 'right', 'top', 'bottom'].forEach(pos => {
+            const handle = document.createElement('div');
+            handle.className = `resize-handle-${pos}`;
+            sidebar.appendChild(handle);
+        });
+        ['tl', 'tr', 'bl', 'br'].forEach(pos => {
+            const handle = document.createElement('div');
+            handle.className = `resize-handle-corner-${pos}`;
+            sidebar.appendChild(handle);
+        });
+
+        // 创建头部
+        const header = document.createElement('div');
+        header.className = 'sidebar-header';
+
+        const tabs = document.createElement('div');
+        tabs.className = 'tabs';
+        tabs.id = 'tabs-container';
+
+        ['chat', 'providers', 'prompts'].forEach((tab, i) => {
+            const btn = document.createElement('button');
+            btn.className = i === 0 ? 'tab active' : 'tab';
+            btn.dataset.tab = tab;
+            btn.textContent = tab === 'chat' ? '对话' : tab === 'providers' ? 'AI提供商' : '提示词库';
+            tabs.appendChild(btn);
+        });
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'close-btn';
+        closeBtn.textContent = '×';
+
+        header.appendChild(tabs);
+        header.appendChild(closeBtn);
+        sidebar.appendChild(header);
+
+        // 创建内容区
+        const content = document.createElement('div');
+        content.className = 'sidebar-content';
+
+        // 对话标签页
+        const chatTab = document.createElement('div');
+        chatTab.className = 'tab-content active';
+        chatTab.id = 'chat-tab';
+
+        const modelSelector = document.createElement('div');
+        modelSelector.className = 'model-selector';
+        const modelBtn = document.createElement('button');
+        modelBtn.id = 'model-display-btn';
+        const modelName = document.createElement('span');
+        modelName.id = 'model-name';
+        modelName.textContent = '选择模型';
+        const arrow = document.createElement('span');
+        arrow.className = 'arrow';
+        arrow.textContent = '▼';
+        modelBtn.appendChild(modelName);
+        modelBtn.appendChild(arrow);
+        const modelDropdown = document.createElement('div');
+        modelDropdown.id = 'model-dropdown';
+        modelDropdown.className = 'model-dropdown';
+        modelDropdown.style.display = 'none';
+        modelSelector.appendChild(modelBtn);
+        modelSelector.appendChild(modelDropdown);
+
+        const messages = document.createElement('div');
+        messages.className = 'messages';
+        messages.id = 'messages';
+
+        const inputArea = document.createElement('div');
+        inputArea.className = 'input-area';
+        const inputWrapper = document.createElement('div');
+        inputWrapper.className = 'input-wrapper';
+
+        const btnContainer = document.createElement('div');
+        btnContainer.style.display = 'flex';
+        btnContainer.style.gap = '5px';
+
+        const promptBtn = document.createElement('button');
+        promptBtn.id = 'prompt-selector-btn';
+        promptBtn.className = 'prompt-icon-top';
+        promptBtn.title = '选择提示词';
+        promptBtn.textContent = '💡';
+
+        const paramsBtn = document.createElement('button');
+        paramsBtn.id = 'params-selector-btn';
+        paramsBtn.className = 'prompt-icon-top';
+        paramsBtn.title = '模型参数';
+        paramsBtn.textContent = '⚙️';
+
+        btnContainer.appendChild(promptBtn);
+        btnContainer.appendChild(paramsBtn);
+
+        const textarea = document.createElement('textarea');
+        textarea.id = 'user-input';
+        textarea.placeholder = '输入消息...';
+
+        inputWrapper.appendChild(btnContainer);
+        inputWrapper.appendChild(textarea);
+
+        const sendBtn = document.createElement('button');
+        sendBtn.id = 'send-btn';
+        sendBtn.textContent = '发送';
+
+        const promptDropdown = document.createElement('div');
+        promptDropdown.id = 'prompt-dropdown';
+        promptDropdown.className = 'prompt-dropdown';
+        promptDropdown.style.display = 'none';
+
+        const paramsPanel = document.createElement('div');
+        paramsPanel.id = 'params-panel';
+        paramsPanel.className = 'params-panel';
+        paramsPanel.style.display = 'none';
+
+        const tempItem = document.createElement('div');
+        tempItem.className = 'params-item';
+        const tempLabel = document.createElement('label');
+        tempLabel.textContent = '温度 (Temperature):';
+        const tempInput = document.createElement('input');
+        tempInput.type = 'number';
+        tempInput.id = 'param-temperature';
+        tempInput.min = '0';
+        tempInput.max = '2';
+        tempInput.step = '0.1';
+        tempInput.value = '0.7';
+        tempItem.appendChild(tempLabel);
+        tempItem.appendChild(tempInput);
+
+        const tokensItem = document.createElement('div');
+        tokensItem.className = 'params-item';
+        const tokensLabel = document.createElement('label');
+        tokensLabel.textContent = '最大上下文 (Max Tokens):';
+        const tokensInput = document.createElement('input');
+        tokensInput.type = 'number';
+        tokensInput.id = 'param-max-tokens';
+        tokensInput.min = '1';
+        tokensInput.step = '1';
+        tokensInput.value = '2048';
+        tokensItem.appendChild(tokensLabel);
+        tokensItem.appendChild(tokensInput);
+
+        paramsPanel.appendChild(tempItem);
+        paramsPanel.appendChild(tokensItem);
+
+        inputArea.appendChild(inputWrapper);
+        inputArea.appendChild(sendBtn);
+        inputArea.appendChild(promptDropdown);
+        inputArea.appendChild(paramsPanel);
+
+        chatTab.appendChild(modelSelector);
+        chatTab.appendChild(messages);
+        chatTab.appendChild(inputArea);
+
+        // 提供商标签页
+        const providersTab = document.createElement('div');
+        providersTab.className = 'tab-content';
+        providersTab.id = 'providers-tab';
+        const providersContainer = document.createElement('div');
+        providersContainer.className = 'providers-container';
+        const providersSidebar = document.createElement('div');
+        providersSidebar.className = 'providers-sidebar';
+        const addProviderBtn = document.createElement('button');
+        addProviderBtn.id = 'add-provider-btn';
+        addProviderBtn.textContent = '+ 添加供应商';
+        const providersList = document.createElement('div');
+        providersList.className = 'providers-list';
+        providersList.id = 'providers-sidebar-list';
+        providersSidebar.appendChild(addProviderBtn);
+        providersSidebar.appendChild(providersList);
+        const providerDetail = document.createElement('div');
+        providerDetail.className = 'provider-detail';
+        providerDetail.id = 'provider-detail';
+        const emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+        emptyState.textContent = '请选择或添加一个供应商';
+        providerDetail.appendChild(emptyState);
+        providersContainer.appendChild(providersSidebar);
+        providersContainer.appendChild(providerDetail);
+        providersTab.appendChild(providersContainer);
+
+        // 提示词标签页
+        const promptsTab = document.createElement('div');
+        promptsTab.className = 'tab-content';
+        promptsTab.id = 'prompts-tab';
+        const promptsToolbar = document.createElement('div');
+        promptsToolbar.className = 'prompts-toolbar';
+        const addPromptBtn = document.createElement('button');
+        addPromptBtn.id = 'add-prompt';
+        addPromptBtn.textContent = '+ 新增';
+        const batchDeleteBtn = document.createElement('button');
+        batchDeleteBtn.id = 'batch-delete-prompt';
+        batchDeleteBtn.textContent = '批量删除';
+        promptsToolbar.appendChild(addPromptBtn);
+        promptsToolbar.appendChild(batchDeleteBtn);
+        const promptsList = document.createElement('div');
+        promptsList.className = 'prompts-list';
+        promptsList.id = 'prompts-list';
+        promptsTab.appendChild(promptsToolbar);
+        promptsTab.appendChild(promptsList);
+
+        content.appendChild(chatTab);
+        content.appendChild(providersTab);
+        content.appendChild(promptsTab);
+        sidebar.appendChild(content);
+
         document.body.appendChild(sidebar);
         return sidebar;
     };
@@ -98,7 +273,7 @@
     const createTriggerButton = () => {
         const btn = document.createElement('button');
         btn.id = 'ai-chat-trigger';
-        btn.innerHTML = '💬';
+        btn.textContent = '💬';
         btn.title = 'AI对话';
         document.body.appendChild(btn);
         return btn;
@@ -476,6 +651,39 @@
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+            }
+            .params-panel {
+                position: absolute;
+                bottom: 100%;
+                left: 0;
+                right: 0;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+                padding: 15px;
+                z-index: 100;
+                margin-bottom: 8px;
+            }
+            .params-item {
+                margin-bottom: 10px;
+            }
+            .params-item:last-child {
+                margin-bottom: 0;
+            }
+            .params-item label {
+                display: block;
+                margin-bottom: 5px;
+                font-size: 12px;
+                font-weight: 500;
+                color: #333;
+            }
+            .params-item input {
+                width: 100%;
+                padding: 6px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-size: 13px;
             }
             #send-btn {
                 padding: 10px 20px;
@@ -1002,7 +1210,7 @@
         const renderProvidersSidebar = () => {
             const providers = ConfigManager.getProviders();
             const list = sidebar.querySelector('#providers-sidebar-list');
-            list.innerHTML = '';
+            list.textContent = '';
 
             providers.forEach((provider, index) => {
                 const item = document.createElement('div');
@@ -1010,10 +1218,10 @@
                 if (index === currentProviderIndex) {
                     item.classList.add('active');
                 }
-                item.innerHTML = `
+                safeInnerHTML(item, `
                     <span class="provider-name">${provider.name || '未命名供应商'}</span>
                     <span class="delete-icon" data-index="${index}">×</span>
-                `;
+                `);
                 item.dataset.index = index;
                 list.appendChild(item);
             });
@@ -1068,7 +1276,7 @@
             const finalUrlDisplay = sidebar.querySelector(`#final-url-${index}`);
             if (urlInput && finalUrlDisplay) {
                 const finalUrl = normalizeApiUrl(urlInput.value);
-                finalUrlDisplay.innerHTML = `<strong>最终调用地址：</strong>${finalUrl || '请输入API URL'}`;
+                safeInnerHTML(finalUrlDisplay, `<strong>最终调用地址：</strong>${finalUrl || '请输入API URL'}`);
             }
         };
 
@@ -1078,7 +1286,7 @@
             const detail = sidebar.querySelector('#provider-detail');
             const models = ConfigManager.getModels(index);
 
-            detail.innerHTML = `
+            safeInnerHTML(detail, `
                 <div class="provider-form">
                     <h3>供应商信息</h3>
                     <div class="form-group">
@@ -1115,17 +1323,17 @@
                         </div>
                     </div>
                 </div>
-            `;
+            `);
 
             const modelsList = detail.querySelector(`#models-list-${index}`);
             models.forEach((model, modelIndex) => {
                 const item = document.createElement('div');
                 item.className = 'model-item';
-                item.innerHTML = `
+                safeInnerHTML(item, `
                     <input type="text" value="${model}" data-model="${modelIndex}">
                     <button class="save-model-btn" data-provider="${index}" data-model="${modelIndex}">保存</button>
                     <button class="delete-model-btn" data-provider="${index}" data-model="${modelIndex}">删除</button>
-                `;
+                `);
                 modelsList.appendChild(item);
             });
 
@@ -1164,7 +1372,7 @@
             const fetchBtn = sidebar.querySelector(`.fetch-models-btn[data-index="${index}"]`);
             const refreshBtn = sidebar.querySelector(`.refresh-models-btn[data-index="${index}"]`);
 
-            availableList.innerHTML = '<div class="loading-models">正在获取模型列表...</div>';
+            safeInnerHTML(availableList, '<div class="loading-models">正在获取模型列表...</div>');
             availableSection.style.display = 'block';
 
             const modelsUrl = getModelsUrl(provider.url);
@@ -1187,11 +1395,11 @@
                         fetchBtn.style.display = 'none';
                         refreshBtn.style.display = 'inline-block';
                     } catch (e) {
-                        availableList.innerHTML = '<div class="loading-models">获取失败: ' + e.message + '</div>';
+                        safeInnerHTML(availableList, '<div class="loading-models">获取失败: ' + e.message + '</div>');
                     }
                 },
                 onerror: () => {
-                    availableList.innerHTML = '<div class="loading-models">请求失败，请检查URL和API Key</div>';
+                    safeInnerHTML(availableList, '<div class="loading-models">请求失败，请检查URL和API Key</div>');
                 }
             });
         };
@@ -1200,15 +1408,15 @@
             const availableList = sidebar.querySelector(`#available-models-list-${index}`);
             const existingModels = ConfigManager.getModels(index);
 
-            availableList.innerHTML = '';
+            availableList.textContent = '';
             models.forEach(modelName => {
                 const item = document.createElement('div');
                 item.className = 'available-model-item';
                 item.dataset.modelName = modelName;
-                item.innerHTML = `
+                safeInnerHTML(item, `
                     <span class="model-name">${modelName}</span>
                     <span class="add-model-icon" data-provider="${index}" data-model-name="${modelName}">+</span>
-                `;
+                `);
                 availableList.appendChild(item);
             });
         };
@@ -1244,7 +1452,7 @@
 
                 if (currentProviderIndex === index) {
                     currentProviderIndex = null;
-                    sidebar.querySelector('#provider-detail').innerHTML = '<div class="empty-state">请选择或添加一个供应商</div>';
+                    safeInnerHTML(sidebar.querySelector('#provider-detail'), '<div class="empty-state">请选择或添加一个供应商</div>');
                 } else if (currentProviderIndex > index) {
                     currentProviderIndex--;
                 }
@@ -1353,7 +1561,7 @@
 
         const renderModelDropdown = () => {
             const providers = ConfigManager.getProviders();
-            modelDropdown.innerHTML = '';
+            modelDropdown.textContent = '';
 
             providers.forEach((provider, providerIndex) => {
                 const models = ConfigManager.getModels(providerIndex);
@@ -1404,20 +1612,20 @@
 
         const renderPromptDropdown = () => {
             const prompts = ConfigManager.getPrompts();
-            promptDropdown.innerHTML = '';
+            promptDropdown.textContent = '';
 
             if (prompts.length === 0) {
-                promptDropdown.innerHTML = '<div class="prompt-dropdown-item" style="text-align:center;color:#999;">暂无提示词</div>';
+                safeInnerHTML(promptDropdown, '<div class="prompt-dropdown-item" style="text-align:center;color:#999;">暂无提示词</div>');
                 return;
             }
 
             prompts.forEach((prompt, index) => {
                 const item = document.createElement('div');
                 item.className = 'prompt-dropdown-item';
-                item.innerHTML = `
+                safeInnerHTML(item, `
                     <div class="prompt-title">${prompt.title || '未命名'}</div>
                     <div class="prompt-preview">${prompt.content || ''}</div>
-                `;
+                `);
                 item.dataset.index = index;
                 promptDropdown.appendChild(item);
             });
@@ -1427,7 +1635,32 @@
             e.stopPropagation();
             const isOpen = promptDropdown.style.display === 'block';
             promptDropdown.style.display = isOpen ? 'none' : 'block';
+            sidebar.querySelector('#params-panel').style.display = 'none';
+            sidebar.querySelector('#params-selector-btn').classList.remove('selected');
             if (!isOpen) renderPromptDropdown();
+        });
+
+        // 模型参数设置
+        let modelParams = {temperature: 0.7, max_tokens: 2048};
+        const paramsSelectorBtn = sidebar.querySelector('#params-selector-btn');
+        const paramsPanel = sidebar.querySelector('#params-panel');
+        const tempInput = sidebar.querySelector('#param-temperature');
+        const maxTokensInput = sidebar.querySelector('#param-max-tokens');
+
+        paramsSelectorBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = paramsPanel.style.display === 'block';
+            paramsPanel.style.display = isOpen ? 'none' : 'block';
+            promptDropdown.style.display = 'none';
+            paramsSelectorBtn.classList.toggle('selected', !isOpen);
+        });
+
+        tempInput.addEventListener('input', (e) => {
+            modelParams.temperature = parseFloat(e.target.value) || 0.7;
+        });
+
+        maxTokensInput.addEventListener('input', (e) => {
+            modelParams.max_tokens = parseInt(e.target.value) || 2048;
         });
 
         promptDropdown.addEventListener('click', (e) => {
@@ -1449,6 +1682,8 @@
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.input-area')) {
                 promptDropdown.style.display = 'none';
+                paramsPanel.style.display = 'none';
+                paramsSelectorBtn.classList.remove('selected');
             }
         });
 
@@ -1483,37 +1718,155 @@
 
             try {
                 const finalUrl = normalizeApiUrl(provider.url);
-                GM_xmlhttpRequest({
-                    method: 'POST',
-                    url: finalUrl,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${provider.key}`
-                    },
-                    data: JSON.stringify({
-                        model: config.model,
-                        messages: currentSystemPrompt
-                            ? [{role: 'system', content: currentSystemPrompt}, {role: 'user', content: text}]
-                            : [{role: 'user', content: text}]
-                    }),
-                    onload: (response) => {
-                        try {
-                            const data = JSON.parse(response.responseText);
-                            const content = data.choices[0].message.content;
-                            aiMsg.innerHTML = marked.parse(content);
-                            aiMsg.querySelectorAll('pre code').forEach((block) => {
-                                hljs.highlightElement(block);
-                            });
-                        } catch (e) {
-                            aiMsg.textContent = '解析响应失败';
+                let fullContent = '';
+                let buffer = '';
+                let lastIndex = 0;
+
+                // UI 更新节流
+                let updateScheduled = false;
+                const updateUI = () => {
+                    if (updateScheduled) return;
+                    updateScheduled = true;
+                    requestAnimationFrame(() => {
+                        safeInnerHTML(aiMsg, marked.parse(fullContent), fullContent);
+                        aiMsg.querySelectorAll('pre code').forEach((block) => {
+                            hljs.highlightElement(block);
+                        });
+                        messages.scrollTop = messages.scrollHeight;
+                        updateScheduled = false;
+                    });
+                };
+
+                const processStreamLine = (line) => {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine.startsWith('data:')) return;
+
+                    const data = trimmedLine.slice(5).trim();
+                    if (data === '[DONE]') return;
+
+                    try {
+                        const parsed = JSON.parse(data);
+                        let delta = '';
+                        if (parsed.choices && parsed.choices.length > 0) {
+                            const choice = parsed.choices[0];
+                            if (choice.delta && choice.delta.content) {
+                                delta = choice.delta.content;
+                            } else if (choice.message && choice.message.content) {
+                                delta = choice.message.content;
+                            } else if (choice.text) {
+                                delta = choice.text;
+                            }
+                        } else if (parsed.content) {
+                            delta = parsed.content;
                         }
-                        messages.scrollTop = messages.scrollHeight;
-                    },
-                    onerror: () => {
-                        aiMsg.textContent = '请求失败';
-                        messages.scrollTop = messages.scrollHeight;
+
+                        if (delta) {
+                            fullContent += delta;
+                            updateUI();
+                        }
+                    } catch (e) {
+                        // 忽略解析错误
                     }
-                });
+                };
+
+                const requestData = {
+                    model: config.model,
+                    messages: currentSystemPrompt
+                        ? [{role: 'system', content: currentSystemPrompt}, {role: 'user', content: text}]
+                        : [{role: 'user', content: text}],
+                    temperature: modelParams.temperature,
+                    max_tokens: modelParams.max_tokens,
+                    stream: true
+                };
+
+                // 优先尝试使用 fetch (支持流式)
+                try {
+                    aiMsg.textContent = '';
+                    const response = await fetch(finalUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${provider.key}`
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value, { stream: true });
+                        buffer += chunk;
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+                        lines.forEach(processStreamLine);
+                    }
+
+                    // 处理剩余 buffer
+                    if (buffer) processStreamLine(buffer);
+                    updateUI();
+
+                } catch (fetchError) {
+                    console.warn('Fetch failed, falling back to GM_xmlhttpRequest:', fetchError);
+
+                    // 如果 fetch 失败 (可能是 CORS)，回退到 GM_xmlhttpRequest
+                    // 注意：GM_xmlhttpRequest 在某些环境下可能不支持流式，会退化为一次性输出
+                    GM_xmlhttpRequest({
+                        method: 'POST',
+                        url: finalUrl,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${provider.key}`
+                        },
+                        data: JSON.stringify(requestData),
+                        onloadstart: () => {
+                            if (!fullContent) aiMsg.textContent = '正在重试...';
+                        },
+                        onprogress: (response) => {
+                            const responseText = response.responseText;
+                            if (!responseText) return;
+
+                            const newText = responseText.slice(lastIndex);
+                            if (newText.length === 0) return;
+                            lastIndex = responseText.length;
+                            buffer += newText;
+
+                            const lines = buffer.split('\n');
+                            buffer = lines.pop();
+
+                            lines.forEach(processStreamLine);
+                        },
+                        onload: (response) => {
+                            if (buffer) processStreamLine(buffer);
+                            updateUI();
+
+                            if (!fullContent) {
+                                // 最后的兜底解析
+                                try {
+                                    const data = JSON.parse(response.responseText);
+                                    if (data.choices && data.choices[0]?.message?.content) {
+                                        fullContent = data.choices[0].message.content;
+                                        updateUI();
+                                    } else if (data.error) {
+                                        aiMsg.textContent = 'API错误: ' + (data.error.message || JSON.stringify(data.error));
+                                    }
+                                } catch (e) {
+                                    aiMsg.textContent = '请求失败: ' + (fetchError.message || '未知错误');
+                                }
+                            }
+                        },
+                        onerror: (err) => {
+                            aiMsg.textContent = '请求失败: ' + (err.statusText || '网络错误');
+                        }
+                    });
+                }
             } catch (e) {
                 aiMsg.textContent = '发送失败: ' + e.message;
             }
@@ -1531,13 +1884,13 @@
         const renderPrompts = () => {
             const prompts = ConfigManager.getPrompts();
             const list = sidebar.querySelector('#prompts-list');
-            list.innerHTML = '';
+            list.textContent = '';
 
             prompts.forEach((prompt, index) => {
                 const item = document.createElement('div');
                 item.className = 'prompt-item';
                 item.dataset.index = index;
-                item.innerHTML = `
+                safeInnerHTML(item, `
                     <input type="checkbox" class="prompt-checkbox" data-index="${index}">
                     <div class="prompt-header">
                         <div class="prompt-title">${prompt.title || '未命名'}</div>
@@ -1548,7 +1901,7 @@
                         </div>
                     </div>
                     <div class="prompt-content" style="display:none;">${prompt.content || ''}</div>
-                `;
+                `);
                 list.appendChild(item);
             });
         };
@@ -1591,7 +1944,7 @@
                 const prompts = ConfigManager.getPrompts();
                 const prompt = prompts[index];
                 item.classList.add('editing');
-                item.innerHTML = `
+                safeInnerHTML(item, `
                     <div class="prompt-form">
                         <input type="text" placeholder="标题" value="${prompt.title || ''}" class="prompt-title-input">
                         <textarea placeholder="内容" class="prompt-content-input">${prompt.content || ''}</textarea>
@@ -1600,7 +1953,7 @@
                             <button class="cancel-btn" data-index="${index}">取消</button>
                         </div>
                     </div>
-                `;
+                `);
             } else if (e.target.classList.contains('delete-btn')) {
                 if (!confirm('确定删除此提示词吗？')) return;
                 const prompts = ConfigManager.getPrompts();
