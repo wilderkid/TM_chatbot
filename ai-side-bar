@@ -9,6 +9,8 @@
 // @grant        GM_getValue
 // @grant        GM_xmlhttpRequest
 // @connect      *
+// @require      https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js
+// @require      https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js
 // ==/UserScript==
 
 (function() {
@@ -19,7 +21,13 @@
         get: (key, defaultValue) => GM_getValue(key, defaultValue),
         set: (key, value) => GM_setValue(key, value),
         getProviders: () => GM_getValue('ai_providers', []),
-        saveProviders: (providers) => GM_setValue('ai_providers', providers)
+        saveProviders: (providers) => GM_setValue('ai_providers', providers),
+        getPrompts: () => GM_getValue('prompts', []),
+        savePrompts: (prompts) => GM_setValue('prompts', prompts),
+        getModels: (providerIndex) => GM_getValue(`models_${providerIndex}`, []),
+        saveModels: (providerIndex, models) => GM_setValue(`models_${providerIndex}`, models),
+        getAvailableModels: (providerIndex) => GM_getValue(`available_models_${providerIndex}`, []),
+        saveAvailableModels: (providerIndex, models) => GM_setValue(`available_models_${providerIndex}`, models)
     };
 
     // 创建侧边栏HTML
@@ -36,28 +44,49 @@
             <div class="resize-handle-corner-bl"></div>
             <div class="resize-handle-corner-br"></div>
             <div class="sidebar-header">
-                <div class="tabs">
+                <div class="tabs" id="tabs-container">
                     <button class="tab active" data-tab="chat">对话</button>
-                    <button class="tab" data-tab="config">配置</button>
+                    <button class="tab" data-tab="providers">AI提供商</button>
+                    <button class="tab" data-tab="prompts">提示词库</button>
                 </div>
                 <button class="close-btn">×</button>
             </div>
             <div class="sidebar-content">
                 <div class="tab-content active" id="chat-tab">
                     <div class="model-selector">
-                        <select id="model-select">
-                            <option value="">选择模型</option>
-                        </select>
+                        <button id="model-display-btn">
+                            <span id="model-name">选择模型</span>
+                            <span class="arrow">▼</span>
+                        </button>
+                        <div id="model-dropdown" class="model-dropdown" style="display:none;"></div>
                     </div>
                     <div class="messages" id="messages"></div>
                     <div class="input-area">
-                        <textarea id="user-input" placeholder="输入消息..."></textarea>
+                        <div class="input-wrapper">
+                            <button id="prompt-selector-btn" class="prompt-icon-top" title="选择提示词">💡</button>
+                            <textarea id="user-input" placeholder="输入消息..."></textarea>
+                        </div>
                         <button id="send-btn">发送</button>
+                        <div id="prompt-dropdown" class="prompt-dropdown" style="display:none;"></div>
                     </div>
                 </div>
-                <div class="tab-content" id="config-tab">
-                    <div class="config-list" id="config-list"></div>
-                    <button id="add-provider">+ 添加提供商</button>
+                <div class="tab-content" id="providers-tab">
+                    <div class="providers-container">
+                        <div class="providers-sidebar">
+                            <button id="add-provider-btn">+ 添加供应商</button>
+                            <div class="providers-list" id="providers-sidebar-list"></div>
+                        </div>
+                        <div class="provider-detail" id="provider-detail">
+                            <div class="empty-state">请选择或添加一个供应商</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-content" id="prompts-tab">
+                    <div class="prompts-toolbar">
+                        <button id="add-prompt">+ 新增</button>
+                        <button id="batch-delete-prompt">批量删除</button>
+                    </div>
+                    <div class="prompts-list" id="prompts-list"></div>
                 </div>
             </div>
         `;
@@ -77,6 +106,12 @@
 
     // 添加样式
     const addStyles = () => {
+        // 添加highlight.js样式
+        const highlightStyle = document.createElement('link');
+        highlightStyle.rel = 'stylesheet';
+        highlightStyle.href = 'https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css';
+        document.head.appendChild(highlightStyle);
+
         const style = document.createElement('style');
         style.textContent = `
             #ai-chat-trigger {
@@ -100,21 +135,16 @@
             }
             #ai-chat-sidebar {
                 position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
+                top: 0;
+                right: 0;
                 width: 400px;
-                height: 65vh;
+                height: 100vh;
                 background: white;
-                box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                box-shadow: -2px 0 8px rgba(0,0,0,0.1);
                 z-index: 9999;
                 display: none;
                 flex-direction: column;
-                min-width: 300px;
-                max-width: 90vw;
-                min-height: 300px;
-                max-height: 90vh;
-                border-radius: 12px;
+                border-radius: 0;
             }
             #ai-chat-sidebar.open {
                 display: flex;
@@ -186,10 +216,13 @@
                 align-items: center;
                 cursor: move;
                 user-select: none;
+                flex-wrap: wrap;
             }
             .tabs {
                 display: flex;
                 gap: 10px;
+                flex-wrap: wrap;
+                flex: 1;
             }
             .tab {
                 background: rgba(255,255,255,0.2);
@@ -227,48 +260,222 @@
             .tab-content.active {
                 display: flex;
             }
-            .model-selector {
-                padding: 10px;
-                border-bottom: 1px solid #eee;
-            }
-            #model-select {
-                width: 100%;
-                padding: 8px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-            }
             .messages {
                 flex: 1;
                 overflow-y: auto;
                 padding: 15px;
+                display: flex;
+                flex-direction: column;
             }
             .message {
                 margin-bottom: 15px;
                 padding: 10px;
                 border-radius: 8px;
                 max-width: 80%;
+                width: fit-content;
+                text-align: left;
             }
             .message.user {
                 background: #667eea;
                 color: white;
-                margin-left: auto;
+                align-self: flex-end;
             }
             .message.ai {
                 background: #f0f0f0;
+                align-self: flex-start;
+            }
+            #ai-chat-sidebar .message pre {
+                background: #282c34;
+                padding: 12px;
+                border-radius: 6px;
+                overflow-x: auto;
+                margin: 8px 0;
+            }
+            #ai-chat-sidebar .message code {
+                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                font-size: 13px;
+            }
+            #ai-chat-sidebar .message pre code {
+                background: none;
+                padding: 0;
+            }
+            #ai-chat-sidebar .message :not(pre) > code {
+                background: rgba(0,0,0,0.1);
+                padding: 2px 6px;
+                border-radius: 3px;
+            }
+            #ai-chat-sidebar .message p {
+                margin: 8px 0;
+            }
+            #ai-chat-sidebar .message p:first-child {
+                margin-top: 0;
+            }
+            #ai-chat-sidebar .message p:last-child {
+                margin-bottom: 0;
+            }
+            #ai-chat-sidebar .message ul, #ai-chat-sidebar .message ol {
+                margin: 8px 0;
+                padding-left: 24px;
+            }
+            #ai-chat-sidebar .message blockquote {
+                border-left: 3px solid #667eea;
+                padding-left: 12px;
+                margin: 8px 0;
+                color: #666;
+            }
+            #ai-chat-sidebar .message table {
+                border-collapse: collapse;
+                margin: 8px 0;
+                width: 100%;
+            }
+            #ai-chat-sidebar .message th, #ai-chat-sidebar .message td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+            #ai-chat-sidebar .message th {
+                background: #f5f5f5;
+                font-weight: bold;
+            }
+            .model-selector {
+                padding: 10px 15px;
+                border-bottom: 1px solid #eee;
+                position: relative;
+            }
+            #model-display-btn {
+                background: none;
+                border: none;
+                color: #667eea;
+                font-size: 14px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                padding: 5px 0;
+                font-weight: 500;
+            }
+            #model-display-btn:hover {
+                opacity: 0.8;
+            }
+            #model-display-btn .arrow {
+                font-size: 10px;
+                transition: transform 0.2s;
+            }
+            #model-display-btn.open .arrow {
+                transform: rotate(180deg);
+            }
+            .model-dropdown {
+                position: absolute;
+                top: 100%;
+                left: 15px;
+                right: 15px;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                max-height: 200px;
+                overflow-y: auto;
+                z-index: 100;
+            }
+            .model-dropdown-item {
+                padding: 10px 15px;
+                cursor: pointer;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            .model-dropdown-item:last-child {
+                border-bottom: none;
+            }
+            .model-dropdown-item:hover {
+                background: #f5f5f5;
+            }
+            .model-dropdown-item.selected {
+                background: #667eea;
+                color: white;
             }
             .input-area {
                 padding: 15px;
                 border-top: 1px solid #eee;
+                position: relative;
+            }
+            .input-wrapper {
+                position: relative;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background: white;
+                padding: 10px;
                 display: flex;
-                gap: 10px;
+                flex-direction: column;
+                gap: 8px;
+                resize: vertical;
+                overflow: hidden;
+                min-height: 70px;
+            }
+            .prompt-icon-top {
+                background: none;
+                border: none;
+                font-size: 18px;
+                cursor: pointer;
+                padding: 4px;
+                align-self: flex-start;
+                line-height: 1;
+                border-radius: 4px;
+                transition: background 0.2s;
+                flex-shrink: 0;
+            }
+            .prompt-icon-top:hover {
+                background: rgba(102, 126, 234, 0.1);
+            }
+            .prompt-icon-top.selected {
+                background: rgba(102, 126, 234, 0.2);
             }
             #user-input {
                 flex: 1;
-                padding: 10px;
-                border: 1px solid #ddd;
-                border-radius: 4px;
+                border: none;
+                outline: none;
                 resize: none;
                 font-family: inherit;
+                min-height: 40px;
+                padding: 0;
+                overflow-y: auto;
+            }
+            #send-btn {
+                margin-top: 10px;
+            }
+            .prompt-dropdown {
+                position: absolute;
+                bottom: 100%;
+                left: 0;
+                right: 0;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+                max-height: 300px;
+                overflow-y: auto;
+                z-index: 100;
+                margin-bottom: 8px;
+            }
+            .prompt-dropdown-item {
+                padding: 10px 15px;
+                cursor: pointer;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            .prompt-dropdown-item:last-child {
+                border-bottom: none;
+            }
+            .prompt-dropdown-item:hover {
+                background: #f5f5f5;
+            }
+            .prompt-dropdown-item .prompt-title {
+                font-weight: 500;
+                margin-bottom: 4px;
+            }
+            .prompt-dropdown-item .prompt-preview {
+                font-size: 12px;
+                color: #999;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             #send-btn {
                 padding: 10px 20px;
@@ -281,41 +488,17 @@
             #send-btn:hover {
                 background: #5568d3;
             }
-            .config-list {
-                flex: 1;
-                overflow-y: auto;
-                padding: 15px;
+            .providers-container {
+                display: flex;
+                height: 100%;
             }
-            .provider-item {
-                background: #f9f9f9;
-                padding: 15px;
-                margin-bottom: 10px;
-                border-radius: 8px;
+            .providers-sidebar {
+                width: 200px;
+                border-right: 1px solid #eee;
+                display: flex;
+                flex-direction: column;
             }
-            .provider-item input {
-                width: 100%;
-                padding: 8px;
-                margin: 5px 0;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-            }
-            .provider-item button {
-                margin-top: 10px;
-                padding: 6px 12px;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-            }
-            .save-btn {
-                background: #667eea;
-                color: white;
-            }
-            .delete-btn {
-                background: #e74c3c;
-                color: white;
-                margin-left: 10px;
-            }
-            #add-provider {
+            #add-provider-btn {
                 margin: 15px;
                 padding: 10px;
                 background: #667eea;
@@ -323,6 +506,352 @@
                 border: none;
                 border-radius: 4px;
                 cursor: pointer;
+            }
+            .providers-list {
+                flex: 1;
+                overflow-y: auto;
+            }
+            .provider-sidebar-item {
+                padding: 12px 15px;
+                cursor: pointer;
+                border-bottom: 1px solid #eee;
+                transition: background 0.2s;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .provider-sidebar-item:hover {
+                background: #f5f5f5;
+            }
+            .provider-sidebar-item.active {
+                background: #667eea;
+                color: white;
+            }
+            .provider-sidebar-item .delete-icon {
+                opacity: 0;
+                cursor: pointer;
+                font-size: 16px;
+                padding: 2px 6px;
+                border-radius: 3px;
+                transition: opacity 0.2s;
+            }
+            .provider-sidebar-item:hover .delete-icon {
+                opacity: 1;
+            }
+            .provider-sidebar-item .delete-icon:hover {
+                background: rgba(231, 76, 60, 0.2);
+            }
+            .provider-sidebar-item.active .delete-icon:hover {
+                background: rgba(255, 255, 255, 0.3);
+            }
+            .provider-detail {
+                flex: 1;
+                overflow-y: auto;
+                padding: 20px;
+            }
+            .empty-state {
+                text-align: center;
+                color: #999;
+                padding: 50px 20px;
+            }
+            .provider-form {
+                max-width: 600px;
+            }
+            .provider-form h3 {
+                margin: 0 0 20px 0;
+            }
+            .form-group {
+                margin-bottom: 15px;
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }
+            .form-group label {
+                min-width: 100px;
+                font-weight: bold;
+            }
+            .form-group input {
+                flex: 1;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            .final-url-display {
+                margin-left: 115px;
+                padding: 8px;
+                background: #f0f0f0;
+                border-radius: 4px;
+                font-size: 12px;
+                color: #666;
+                word-break: break-all;
+            }
+            .final-url-display strong {
+                color: #333;
+            }
+            .form-group.password-group {
+                position: relative;
+            }
+            .form-group.password-group input {
+                padding-right: 40px;
+            }
+            .form-group .toggle-password {
+                position: absolute;
+                right: 10px;
+                cursor: pointer;
+                font-size: 18px;
+                user-select: none;
+            }
+            .form-actions {
+                display: flex;
+                gap: 10px;
+                margin-top: 20px;
+                margin-left: 115px;
+            }
+            .form-actions button {
+                padding: 10px 20px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                color: white;
+            }
+            .save-provider-btn {
+                background: #667eea;
+            }
+            .models-section {
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 2px solid #eee;
+            }
+            .models-section h3 {
+                margin: 0 0 15px 0;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .fetch-models-btn, .refresh-models-btn {
+                padding: 6px 12px;
+                background: #3498db;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+            }
+            .refresh-models-btn {
+                background: #2ecc71;
+            }
+            .available-models-section {
+                margin-top: 20px;
+                padding: 15px;
+                background: #f9f9f9;
+                border-radius: 8px;
+            }
+            .available-models-section h4 {
+                margin: 0 0 10px 0;
+                font-size: 14px;
+            }
+            .model-search {
+                width: 100%;
+                padding: 8px;
+                margin-bottom: 10px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            .available-models-list {
+                max-height: 300px;
+                overflow-y: auto;
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+            .available-model-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px;
+                background: white;
+                border-radius: 4px;
+                border: 1px solid #eee;
+            }
+            .available-model-item .model-name {
+                flex: 1;
+                font-size: 13px;
+            }
+            .available-model-item .add-model-icon {
+                cursor: pointer;
+                color: #667eea;
+                font-size: 18px;
+                padding: 2px 6px;
+                border-radius: 3px;
+                transition: background 0.2s;
+            }
+            .available-model-item .add-model-icon:hover {
+                background: rgba(102, 126, 234, 0.1);
+            }
+            .loading-models {
+                text-align: center;
+                padding: 20px;
+                color: #999;
+            }
+            .models-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .model-item {
+                background: #f9f9f9;
+                padding: 10px;
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .model-item input {
+                flex: 1;
+                padding: 8px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+            .model-item button {
+                padding: 6px 12px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+                color: white;
+            }
+            .save-model-btn {
+                background: #667eea;
+            }
+            .delete-model-btn {
+                background: #e74c3c;
+            }
+            .add-model-btn {
+                margin-top: 10px;
+                padding: 8px 16px;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            .prompts-toolbar {
+                padding: 15px;
+                display: flex;
+                gap: 10px;
+                border-bottom: 1px solid #eee;
+            }
+            .prompts-toolbar button {
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                color: white;
+            }
+            #add-prompt {
+                background: #667eea;
+            }
+            #batch-delete-prompt {
+                background: #e74c3c;
+            }
+            .prompts-list {
+                flex: 1;
+                overflow-y: auto;
+                padding: 15px;
+            }
+            .prompt-item {
+                background: #f9f9f9;
+                padding: 15px;
+                margin-bottom: 10px;
+                border-radius: 8px;
+                position: relative;
+            }
+            .prompt-item.editing {
+                background: #fff;
+                border: 2px solid #667eea;
+            }
+            .prompt-item input[type="checkbox"] {
+                position: absolute;
+                top: 15px;
+                left: 15px;
+                width: 18px;
+                height: 18px;
+                cursor: pointer;
+            }
+            .prompt-item .prompt-header {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 10px;
+                padding-left: 30px;
+            }
+            .prompt-item .prompt-title {
+                flex: 1;
+                font-weight: bold;
+                font-size: 16px;
+            }
+            .prompt-item .prompt-actions {
+                display: flex;
+                gap: 5px;
+            }
+            .prompt-item .prompt-actions button {
+                padding: 4px 10px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+            }
+            .prompt-item .view-btn {
+                background: #3498db;
+                color: white;
+            }
+            .prompt-item .edit-btn {
+                background: #f39c12;
+                color: white;
+            }
+            .prompt-item .delete-btn {
+                background: #e74c3c;
+                color: white;
+            }
+            .prompt-item .prompt-content {
+                padding-left: 30px;
+                color: #666;
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+            .prompt-item .prompt-form {
+                padding-left: 30px;
+            }
+            .prompt-item .prompt-form input,
+            .prompt-item .prompt-form textarea {
+                width: 100%;
+                padding: 8px;
+                margin: 5px 0;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                font-family: inherit;
+            }
+            .prompt-item .prompt-form textarea {
+                min-height: 100px;
+                resize: vertical;
+            }
+            .prompt-item .prompt-form .form-actions {
+                margin-top: 10px;
+                display: flex;
+                gap: 10px;
+            }
+            .prompt-item .prompt-form .form-actions button {
+                padding: 6px 16px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                color: white;
+            }
+            .prompt-item .save-prompt-btn {
+                background: #667eea;
+            }
+            .prompt-item .cancel-btn {
+                background: #95a5a6;
             }
         `;
         document.head.appendChild(style);
@@ -379,35 +908,32 @@
 
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
-            
+
             const deltaX = e.clientX - startX;
             const deltaY = e.clientY - startY;
-            
+
             if (resizeType.includes('left')) {
                 const newWidth = startWidth - deltaX;
-                if (newWidth >= 300 && newWidth <= window.innerWidth * 0.9) {
+                if (newWidth >= 200) {
                     sidebar.style.width = newWidth + 'px';
-                    sidebar.style.left = (startLeft + deltaX) + 'px';
-                    sidebar.style.transform = 'none';
                 }
             }
             if (resizeType.includes('right')) {
                 const newWidth = startWidth + deltaX;
-                if (newWidth >= 300 && newWidth <= window.innerWidth * 0.9) {
+                if (newWidth >= 200) {
                     sidebar.style.width = newWidth + 'px';
                 }
             }
             if (resizeType.includes('top')) {
                 const newHeight = startHeight - deltaY;
-                if (newHeight >= 300 && newHeight <= window.innerHeight * 0.9) {
+                if (newHeight >= 200) {
                     sidebar.style.height = newHeight + 'px';
                     sidebar.style.top = (startTop + deltaY) + 'px';
-                    sidebar.style.transform = 'none';
                 }
             }
             if (resizeType.includes('bottom')) {
                 const newHeight = startHeight + deltaY;
-                if (newHeight >= 300 && newHeight <= window.innerHeight * 0.9) {
+                if (newHeight >= 200) {
                     sidebar.style.height = newHeight + 'px';
                 }
             }
@@ -446,9 +972,10 @@
             if (!isDragging) return;
             const deltaX = e.clientX - dragStartX;
             const deltaY = e.clientY - dragStartY;
-            sidebar.style.left = (sidebarLeft + deltaX) + 'px';
-            sidebar.style.top = (sidebarTop + deltaY) + 'px';
-            sidebar.style.transform = 'none';
+            const newLeft = sidebarLeft + deltaX;
+            const newTop = sidebarTop + deltaY;
+            sidebar.style.left = newLeft + 'px';
+            sidebar.style.top = newTop + 'px';
         });
 
         document.addEventListener('mouseup', () => {
@@ -469,68 +996,459 @@
             });
         });
 
-        // 配置功能
-        const renderProviders = () => {
+        // AI提供商管理
+        let currentProviderIndex = null;
+
+        const renderProvidersSidebar = () => {
             const providers = ConfigManager.getProviders();
-            const list = sidebar.querySelector('#config-list');
-            const select = sidebar.querySelector('#model-select');
-            
+            const list = sidebar.querySelector('#providers-sidebar-list');
             list.innerHTML = '';
-            select.innerHTML = '<option value="">选择模型</option>';
-            
+
             providers.forEach((provider, index) => {
                 const item = document.createElement('div');
-                item.className = 'provider-item';
+                item.className = 'provider-sidebar-item';
+                if (index === currentProviderIndex) {
+                    item.classList.add('active');
+                }
                 item.innerHTML = `
-                    <input type="text" placeholder="名称" value="${provider.name || ''}" data-field="name">
-                    <input type="text" placeholder="API URL" value="${provider.url || ''}" data-field="url">
-                    <input type="text" placeholder="API Key" value="${provider.key || ''}" data-field="key">
-                    <input type="text" placeholder="模型 (逗号分隔)" value="${provider.models || ''}" data-field="models">
-                    <button class="save-btn" data-index="${index}">保存</button>
-                    <button class="delete-btn" data-index="${index}">删除</button>
+                    <span class="provider-name">${provider.name || '未命名供应商'}</span>
+                    <span class="delete-icon" data-index="${index}">×</span>
                 `;
+                item.dataset.index = index;
                 list.appendChild(item);
+            });
 
-                if (provider.models) {
-                    provider.models.split(',').forEach(model => {
-                        const option = document.createElement('option');
-                        option.value = JSON.stringify({provider: index, model: model.trim()});
-                        option.textContent = `${provider.name} - ${model.trim()}`;
-                        select.appendChild(option);
-                    });
+            updateModelSelect();
+        };
+
+        const normalizeApiUrl = (url) => {
+            if (!url) return '';
+            url = url.trim();
+
+            // 如果已经包含 /chat/completions，直接返回
+            if (url.includes('/chat/completions')) {
+                return url;
+            }
+
+            // 移除末尾的斜杠
+            url = url.replace(/\/+$/, '');
+
+            // 如果包含版本号（v1, v2, v3等），在其后添加 /chat/completions
+            if (/\/v\d+$/i.test(url)) {
+                return url + '/chat/completions';
+            }
+
+            // 默认添加 /v1/chat/completions
+            return url + '/v1/chat/completions';
+        };
+
+        const getModelsUrl = (url) => {
+            if (!url) return '';
+            url = url.trim();
+
+            // 如果已经包含 /models，直接返回
+            if (url.includes('/models')) {
+                return url;
+            }
+
+            // 移除末尾的斜杠
+            url = url.replace(/\/+$/, '');
+
+            // 如果包含版本号（v1, v2, v3等），在其后添加 /models
+            if (/\/v\d+$/i.test(url)) {
+                return url + '/models';
+            }
+
+            // 默认添加 /v1/models
+            return url + '/v1/models';
+        };
+
+        const updateFinalUrl = (index) => {
+            const urlInput = sidebar.querySelector(`#provider-url-${index}`);
+            const finalUrlDisplay = sidebar.querySelector(`#final-url-${index}`);
+            if (urlInput && finalUrlDisplay) {
+                const finalUrl = normalizeApiUrl(urlInput.value);
+                finalUrlDisplay.innerHTML = `<strong>最终调用地址：</strong>${finalUrl || '请输入API URL'}`;
+            }
+        };
+
+        const renderProviderDetail = (index) => {
+            const providers = ConfigManager.getProviders();
+            const provider = providers[index];
+            const detail = sidebar.querySelector('#provider-detail');
+            const models = ConfigManager.getModels(index);
+
+            detail.innerHTML = `
+                <div class="provider-form">
+                    <h3>供应商信息</h3>
+                    <div class="form-group">
+                        <label>供应商名称</label>
+                        <input type="text" value="${provider.name || ''}" id="provider-name-${index}">
+                    </div>
+                    <div class="form-group">
+                        <label>API URL</label>
+                        <input type="text" value="${provider.url || ''}" id="provider-url-${index}" placeholder="例如: https://api.openai.com">
+                    </div>
+                    <div class="final-url-display" id="final-url-${index}"></div>
+                    <div class="form-group password-group">
+                        <label>API Key</label>
+                        <input type="password" value="${provider.key || ''}" id="provider-key-${index}">
+                        <span class="toggle-password" data-target="provider-key-${index}">👁️</span>
+                    </div>
+                    <div class="form-actions">
+                        <button class="save-provider-btn" data-index="${index}">保存</button>
+                    </div>
+
+                    <div class="models-section">
+                        <h3>
+                            已添加模型
+                            <button class="fetch-models-btn" data-index="${index}">获取模型列表</button>
+                            <button class="refresh-models-btn" data-index="${index}" style="display:none;">刷新</button>
+                        </h3>
+                        <div class="models-list" id="models-list-${index}"></div>
+                        <button class="add-model-btn" data-index="${index}">+ 手动添加模型</button>
+
+                        <div class="available-models-section" id="available-models-${index}" style="display:none;">
+                            <h4>可用模型列表</h4>
+                            <input type="text" class="model-search" placeholder="搜索模型..." id="model-search-${index}">
+                            <div class="available-models-list" id="available-models-list-${index}"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const modelsList = detail.querySelector(`#models-list-${index}`);
+            models.forEach((model, modelIndex) => {
+                const item = document.createElement('div');
+                item.className = 'model-item';
+                item.innerHTML = `
+                    <input type="text" value="${model}" data-model="${modelIndex}">
+                    <button class="save-model-btn" data-provider="${index}" data-model="${modelIndex}">保存</button>
+                    <button class="delete-model-btn" data-provider="${index}" data-model="${modelIndex}">删除</button>
+                `;
+                modelsList.appendChild(item);
+            });
+
+            // 初始化显示最终URL
+            updateFinalUrl(index);
+
+            // 监听URL输入框变化
+            const urlInput = sidebar.querySelector(`#provider-url-${index}`);
+            if (urlInput) {
+                urlInput.addEventListener('input', () => updateFinalUrl(index));
+            }
+
+            // 监听模型搜索
+            const searchInput = detail.querySelector(`#model-search-${index}`);
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    filterAvailableModels(index, e.target.value);
+                });
+            }
+
+            // 加载已保存的可用模型列表
+            loadAvailableModels(index);
+        };
+
+        const fetchAvailableModels = async (index) => {
+            const providers = ConfigManager.getProviders();
+            const provider = providers[index];
+
+            if (!provider.url || !provider.key) {
+                alert('请先配置API URL和API Key');
+                return;
+            }
+
+            const availableSection = sidebar.querySelector(`#available-models-${index}`);
+            const availableList = sidebar.querySelector(`#available-models-list-${index}`);
+            const fetchBtn = sidebar.querySelector(`.fetch-models-btn[data-index="${index}"]`);
+            const refreshBtn = sidebar.querySelector(`.refresh-models-btn[data-index="${index}"]`);
+
+            availableList.innerHTML = '<div class="loading-models">正在获取模型列表...</div>';
+            availableSection.style.display = 'block';
+
+            const modelsUrl = getModelsUrl(provider.url);
+
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: modelsUrl,
+                headers: {
+                    'Authorization': `Bearer ${provider.key}`
+                },
+                onload: (response) => {
+                    try {
+                        const data = JSON.parse(response.responseText);
+                        const models = data.data || data.models || [];
+                        const modelNames = models.map(m => m.id || m.name || m).filter(Boolean);
+
+                        ConfigManager.saveAvailableModels(index, modelNames);
+                        renderAvailableModels(index, modelNames);
+
+                        fetchBtn.style.display = 'none';
+                        refreshBtn.style.display = 'inline-block';
+                    } catch (e) {
+                        availableList.innerHTML = '<div class="loading-models">获取失败: ' + e.message + '</div>';
+                    }
+                },
+                onerror: () => {
+                    availableList.innerHTML = '<div class="loading-models">请求失败，请检查URL和API Key</div>';
                 }
             });
         };
 
-        sidebar.querySelector('#add-provider').addEventListener('click', () => {
+        const renderAvailableModels = (index, models) => {
+            const availableList = sidebar.querySelector(`#available-models-list-${index}`);
+            const existingModels = ConfigManager.getModels(index);
+
+            availableList.innerHTML = '';
+            models.forEach(modelName => {
+                const item = document.createElement('div');
+                item.className = 'available-model-item';
+                item.dataset.modelName = modelName;
+                item.innerHTML = `
+                    <span class="model-name">${modelName}</span>
+                    <span class="add-model-icon" data-provider="${index}" data-model-name="${modelName}">+</span>
+                `;
+                availableList.appendChild(item);
+            });
+        };
+
+        const filterAvailableModels = (index, keyword) => {
+            const models = ConfigManager.getAvailableModels(index);
+            const filtered = keyword ? models.filter(m => m.toLowerCase().includes(keyword.toLowerCase())) : models;
+            renderAvailableModels(index, filtered);
+        };
+
+        const updateModelSelect = () => {
+            // 保持兼容性，但不再使用
+        };
+
+        sidebar.querySelector('#add-provider-btn').addEventListener('click', () => {
             const providers = ConfigManager.getProviders();
-            providers.push({name: '', url: '', key: '', models: ''});
+            providers.push({name: '新供应商', url: '', key: ''});
             ConfigManager.saveProviders(providers);
-            renderProviders();
+            currentProviderIndex = providers.length - 1;
+            renderProvidersSidebar();
+            renderProviderDetail(currentProviderIndex);
         });
 
-        sidebar.querySelector('#config-list').addEventListener('click', (e) => {
-            if (e.target.classList.contains('save-btn')) {
+        sidebar.querySelector('#providers-sidebar-list').addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-icon')) {
+                e.stopPropagation();
                 const index = parseInt(e.target.dataset.index);
-                const item = e.target.closest('.provider-item');
-                const providers = ConfigManager.getProviders();
-                
-                providers[index] = {
-                    name: item.querySelector('[data-field="name"]').value,
-                    url: item.querySelector('[data-field="url"]').value,
-                    key: item.querySelector('[data-field="key"]').value,
-                    models: item.querySelector('[data-field="models"]').value
-                };
-                
-                ConfigManager.saveProviders(providers);
-                renderProviders();
-                alert('保存成功');
-            } else if (e.target.classList.contains('delete-btn')) {
-                const index = parseInt(e.target.dataset.index);
+                if (!confirm('确定删除此供应商吗？')) return;
+
                 const providers = ConfigManager.getProviders();
                 providers.splice(index, 1);
                 ConfigManager.saveProviders(providers);
-                renderProviders();
+
+                if (currentProviderIndex === index) {
+                    currentProviderIndex = null;
+                    sidebar.querySelector('#provider-detail').innerHTML = '<div class="empty-state">请选择或添加一个供应商</div>';
+                } else if (currentProviderIndex > index) {
+                    currentProviderIndex--;
+                }
+                renderProvidersSidebar();
+                updateModelSelect();
+                return;
+            }
+
+            const item = e.target.closest('.provider-sidebar-item');
+            if (!item) return;
+
+            currentProviderIndex = parseInt(item.dataset.index);
+            renderProvidersSidebar();
+            renderProviderDetail(currentProviderIndex);
+        });
+
+        sidebar.querySelector('#provider-detail').addEventListener('click', (e) => {
+            if (e.target.classList.contains('toggle-password')) {
+                const targetId = e.target.dataset.target;
+                const input = sidebar.querySelector(`#${targetId}`);
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    e.target.textContent = '🙈';
+                } else {
+                    input.type = 'password';
+                    e.target.textContent = '👁️';
+                }
+            } else if (e.target.classList.contains('save-provider-btn')) {
+                const index = parseInt(e.target.dataset.index);
+                const providers = ConfigManager.getProviders();
+
+                providers[index] = {
+                    name: sidebar.querySelector(`#provider-name-${index}`).value,
+                    url: sidebar.querySelector(`#provider-url-${index}`).value,
+                    key: sidebar.querySelector(`#provider-key-${index}`).value
+                };
+
+                ConfigManager.saveProviders(providers);
+                renderProvidersSidebar();
+                updateModelSelect();
+                alert('保存成功');
+            } else if (e.target.classList.contains('fetch-models-btn')) {
+                const providerIndex = parseInt(e.target.dataset.index);
+                fetchAvailableModels(providerIndex);
+            } else if (e.target.classList.contains('refresh-models-btn')) {
+                const providerIndex = parseInt(e.target.dataset.index);
+                fetchAvailableModels(providerIndex);
+            } else if (e.target.classList.contains('add-model-icon')) {
+                const providerIndex = parseInt(e.target.dataset.provider);
+                const modelName = e.target.dataset.modelName;
+                const models = ConfigManager.getModels(providerIndex);
+
+                if (!models.includes(modelName)) {
+                    models.push(modelName);
+                    ConfigManager.saveModels(providerIndex, models);
+                    renderProviderDetail(providerIndex);
+                    updateModelSelect();
+
+                    // 恢复可用模型列表显示
+                    const availableSection = sidebar.querySelector(`#available-models-${providerIndex}`);
+                    if (availableSection) {
+                        availableSection.style.display = 'block';
+                        const searchInput = sidebar.querySelector(`#model-search-${providerIndex}`);
+                        if (searchInput) {
+                            filterAvailableModels(providerIndex, searchInput.value);
+                        }
+                    }
+                } else {
+                    alert('该模型已存在');
+                }
+            } else if (e.target.classList.contains('add-model-btn')) {
+                const providerIndex = parseInt(e.target.dataset.index);
+                const models = ConfigManager.getModels(providerIndex);
+                models.push('');
+                ConfigManager.saveModels(providerIndex, models);
+                renderProviderDetail(providerIndex);
+            } else if (e.target.classList.contains('save-model-btn')) {
+                const providerIndex = parseInt(e.target.dataset.provider);
+                const modelIndex = parseInt(e.target.dataset.model);
+                const input = e.target.closest('.model-item').querySelector('input');
+                const models = ConfigManager.getModels(providerIndex);
+                models[modelIndex] = input.value.trim();
+                ConfigManager.saveModels(providerIndex, models);
+                updateModelSelect();
+                alert('模型保存成功');
+            } else if (e.target.classList.contains('delete-model-btn')) {
+                const providerIndex = parseInt(e.target.dataset.provider);
+                const modelIndex = parseInt(e.target.dataset.model);
+                if (!confirm('确定删除此模型吗？')) return;
+
+                const models = ConfigManager.getModels(providerIndex);
+                models.splice(modelIndex, 1);
+                ConfigManager.saveModels(providerIndex, models);
+                renderProviderDetail(providerIndex);
+                updateModelSelect();
+            }
+        });
+
+        renderProvidersSidebar();
+
+        // 模型选择下拉菜单
+        let currentSelectedModel = null;
+        const modelDisplayBtn = sidebar.querySelector('#model-display-btn');
+        const modelDropdown = sidebar.querySelector('#model-dropdown');
+        const modelNameSpan = sidebar.querySelector('#model-name');
+
+        const renderModelDropdown = () => {
+            const providers = ConfigManager.getProviders();
+            modelDropdown.innerHTML = '';
+
+            providers.forEach((provider, providerIndex) => {
+                const models = ConfigManager.getModels(providerIndex);
+                models.forEach(model => {
+                    const item = document.createElement('div');
+                    item.className = 'model-dropdown-item';
+                    const modelValue = JSON.stringify({provider: providerIndex, model: model});
+                    if (currentSelectedModel === modelValue) {
+                        item.classList.add('selected');
+                    }
+                    item.textContent = `${provider.name} - ${model}`;
+                    item.dataset.value = modelValue;
+                    modelDropdown.appendChild(item);
+                });
+            });
+        };
+
+        modelDisplayBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = modelDropdown.style.display === 'block';
+            modelDropdown.style.display = isOpen ? 'none' : 'block';
+            modelDisplayBtn.classList.toggle('open', !isOpen);
+            if (!isOpen) renderModelDropdown();
+        });
+
+        modelDropdown.addEventListener('click', (e) => {
+            const item = e.target.closest('.model-dropdown-item');
+            if (!item) return;
+
+            currentSelectedModel = item.dataset.value;
+            const config = JSON.parse(currentSelectedModel);
+            const providers = ConfigManager.getProviders();
+            const provider = providers[config.provider];
+            modelNameSpan.textContent = `${provider.name} - ${config.model}`;
+            modelDropdown.style.display = 'none';
+            modelDisplayBtn.classList.remove('open');
+        });
+
+        document.addEventListener('click', () => {
+            modelDropdown.style.display = 'none';
+            modelDisplayBtn.classList.remove('open');
+        });
+
+        // 提示词选择下拉菜单
+        let currentSystemPrompt = '';
+        const promptSelectorBtn = sidebar.querySelector('#prompt-selector-btn');
+        const promptDropdown = sidebar.querySelector('#prompt-dropdown');
+
+        const renderPromptDropdown = () => {
+            const prompts = ConfigManager.getPrompts();
+            promptDropdown.innerHTML = '';
+
+            if (prompts.length === 0) {
+                promptDropdown.innerHTML = '<div class="prompt-dropdown-item" style="text-align:center;color:#999;">暂无提示词</div>';
+                return;
+            }
+
+            prompts.forEach((prompt, index) => {
+                const item = document.createElement('div');
+                item.className = 'prompt-dropdown-item';
+                item.innerHTML = `
+                    <div class="prompt-title">${prompt.title || '未命名'}</div>
+                    <div class="prompt-preview">${prompt.content || ''}</div>
+                `;
+                item.dataset.index = index;
+                promptDropdown.appendChild(item);
+            });
+        };
+
+        promptSelectorBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = promptDropdown.style.display === 'block';
+            promptDropdown.style.display = isOpen ? 'none' : 'block';
+            if (!isOpen) renderPromptDropdown();
+        });
+
+        promptDropdown.addEventListener('click', (e) => {
+            const item = e.target.closest('.prompt-dropdown-item');
+            if (!item || !item.dataset.index) return;
+
+            const prompts = ConfigManager.getPrompts();
+            const prompt = prompts[parseInt(item.dataset.index)];
+            currentSystemPrompt = prompt.content;
+            promptDropdown.style.display = 'none';
+            promptSelectorBtn.classList.add('selected');
+            promptSelectorBtn.title = `已选择: ${prompt.title}`;
+        });
+
+        // 初始化加载模型和提示词
+        renderModelDropdown();
+        renderPromptDropdown();
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.input-area')) {
+                promptDropdown.style.display = 'none';
             }
         });
 
@@ -540,9 +1458,9 @@
             const messages = sidebar.querySelector('#messages');
             const select = sidebar.querySelector('#model-select');
             const text = input.value.trim();
-            
+
             if (!text) return;
-            if (!select.value) {
+            if (!currentSelectedModel) {
                 alert('请先选择模型');
                 return;
             }
@@ -554,7 +1472,7 @@
             input.value = '';
             messages.scrollTop = messages.scrollHeight;
 
-            const config = JSON.parse(select.value);
+            const config = JSON.parse(currentSelectedModel);
             const providers = ConfigManager.getProviders();
             const provider = providers[config.provider];
 
@@ -564,21 +1482,28 @@
             messages.appendChild(aiMsg);
 
             try {
+                const finalUrl = normalizeApiUrl(provider.url);
                 GM_xmlhttpRequest({
                     method: 'POST',
-                    url: provider.url,
+                    url: finalUrl,
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${provider.key}`
                     },
                     data: JSON.stringify({
                         model: config.model,
-                        messages: [{role: 'user', content: text}]
+                        messages: currentSystemPrompt
+                            ? [{role: 'system', content: currentSystemPrompt}, {role: 'user', content: text}]
+                            : [{role: 'user', content: text}]
                     }),
                     onload: (response) => {
                         try {
                             const data = JSON.parse(response.responseText);
-                            aiMsg.textContent = data.choices[0].message.content;
+                            const content = data.choices[0].message.content;
+                            aiMsg.innerHTML = marked.parse(content);
+                            aiMsg.querySelectorAll('pre code').forEach((block) => {
+                                hljs.highlightElement(block);
+                            });
                         } catch (e) {
                             aiMsg.textContent = '解析响应失败';
                         }
@@ -602,7 +1527,102 @@
             }
         });
 
-        renderProviders();
+        // 提示词库功能
+        const renderPrompts = () => {
+            const prompts = ConfigManager.getPrompts();
+            const list = sidebar.querySelector('#prompts-list');
+            list.innerHTML = '';
+
+            prompts.forEach((prompt, index) => {
+                const item = document.createElement('div');
+                item.className = 'prompt-item';
+                item.dataset.index = index;
+                item.innerHTML = `
+                    <input type="checkbox" class="prompt-checkbox" data-index="${index}">
+                    <div class="prompt-header">
+                        <div class="prompt-title">${prompt.title || '未命名'}</div>
+                        <div class="prompt-actions">
+                            <button class="view-btn" data-index="${index}">查看</button>
+                            <button class="edit-btn" data-index="${index}">编辑</button>
+                            <button class="delete-btn" data-index="${index}">删除</button>
+                        </div>
+                    </div>
+                    <div class="prompt-content" style="display:none;">${prompt.content || ''}</div>
+                `;
+                list.appendChild(item);
+            });
+        };
+
+        sidebar.querySelector('#add-prompt').addEventListener('click', () => {
+            const prompts = ConfigManager.getPrompts();
+            prompts.push({title: '', content: ''});
+            ConfigManager.savePrompts(prompts);
+            renderPrompts();
+            const items = sidebar.querySelectorAll('.prompt-item');
+            const lastItem = items[items.length - 1];
+            if (lastItem) {
+                lastItem.querySelector('.edit-btn').click();
+            }
+        });
+
+        sidebar.querySelector('#batch-delete-prompt').addEventListener('click', () => {
+            const checkboxes = sidebar.querySelectorAll('.prompt-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('请选择要删除的提示词');
+                return;
+            }
+            if (!confirm(`确定删除选中的 ${checkboxes.length} 个提示词吗？`)) return;
+
+            const prompts = ConfigManager.getPrompts();
+            const indices = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index)).sort((a, b) => b - a);
+            indices.forEach(index => prompts.splice(index, 1));
+            ConfigManager.savePrompts(prompts);
+            renderPrompts();
+        });
+
+        sidebar.querySelector('#prompts-list').addEventListener('click', (e) => {
+            const index = parseInt(e.target.dataset.index);
+            const item = sidebar.querySelector(`.prompt-item[data-index="${index}"]`);
+
+            if (e.target.classList.contains('view-btn')) {
+                const content = item.querySelector('.prompt-content');
+                content.style.display = content.style.display === 'none' ? 'block' : 'none';
+            } else if (e.target.classList.contains('edit-btn')) {
+                const prompts = ConfigManager.getPrompts();
+                const prompt = prompts[index];
+                item.classList.add('editing');
+                item.innerHTML = `
+                    <div class="prompt-form">
+                        <input type="text" placeholder="标题" value="${prompt.title || ''}" class="prompt-title-input">
+                        <textarea placeholder="内容" class="prompt-content-input">${prompt.content || ''}</textarea>
+                        <div class="form-actions">
+                            <button class="save-prompt-btn" data-index="${index}">保存</button>
+                            <button class="cancel-btn" data-index="${index}">取消</button>
+                        </div>
+                    </div>
+                `;
+            } else if (e.target.classList.contains('delete-btn')) {
+                if (!confirm('确定删除此提示词吗？')) return;
+                const prompts = ConfigManager.getPrompts();
+                prompts.splice(index, 1);
+                ConfigManager.savePrompts(prompts);
+                renderPrompts();
+            } else if (e.target.classList.contains('save-prompt-btn')) {
+                const prompts = ConfigManager.getPrompts();
+                const titleInput = item.querySelector('.prompt-title-input');
+                const contentInput = item.querySelector('.prompt-content-input');
+                prompts[index] = {
+                    title: titleInput.value.trim() || '未命名',
+                    content: contentInput.value.trim()
+                };
+                ConfigManager.savePrompts(prompts);
+                renderPrompts();
+            } else if (e.target.classList.contains('cancel-btn')) {
+                renderPrompts();
+            }
+        });
+
+        renderPrompts();
     };
 
     if (document.readyState === 'loading') {
