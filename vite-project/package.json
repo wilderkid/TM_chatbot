@@ -1,0 +1,17 @@
+{
+  "name": "ai-chat-sidebar",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.1",
+    "marked": "^17.0.1"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "vite-plugin-monkey": "^3.0.0"
+  }
+}

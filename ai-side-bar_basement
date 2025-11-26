@@ -2811,20 +2811,62 @@ ${pageContent}
                 let buffer = '';
                 let lastIndex = 0;
 
+                // UI 更新节流
                 let updateScheduled = false;
                 let isStreamComplete = false;
+                // 用于存储从API响应中提取的reasoning_content
+                let reasoningContent = '';
+                
+                // 提取思考过程的通用函数，支持多种格式
+                const extractThinkingContent = (content, reasoning = '') => {
+                    let thinkingContent = reasoning;
+                    let mainContent = content;
+                    
+                    // 格式1: <think>...</think> (智谱AI, DeepSeek等)
+                    const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/);
+                    if (thinkMatch) {
+                        thinkingContent = (thinkingContent ? thinkingContent + '\n' : '') + thinkMatch[1].trim();
+                        mainContent = content.replace(/<think>[\s\S]*?<\/think>/, '').trim();
+                    }
+                    
+                    // 格式2: <thinking>...</thinking> (部分模型)
+                    const thinkingMatch = mainContent.match(/<thinking>([\s\S]*?)<\/thinking>/);
+                    if (thinkingMatch) {
+                        thinkingContent = (thinkingContent ? thinkingContent + '\n' : '') + thinkingMatch[1].trim();
+                        mainContent = mainContent.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
+                    }
+                    
+                    // 格式3: <reasoning>...</reasoning> (部分模型)
+                    const reasoningMatch = mainContent.match(/<reasoning>([\s\S]*?)<\/reasoning>/);
+                    if (reasoningMatch) {
+                        thinkingContent = (thinkingContent ? thinkingContent + '\n' : '') + reasoningMatch[1].trim();
+                        mainContent = mainContent.replace(/<reasoning>[\s\S]*?<\/reasoning>/, '').trim();
+                    }
+                    
+                    // 格式4: 处理未闭合的思考标签（流式输出时可能出现）
+                    // <think> 开始但未结束
+                    const unclosedThinkMatch = mainContent.match(/<think>([\s\S]*)$/);
+                    if (unclosedThinkMatch && !mainContent.includes('</think>')) {
+                        thinkingContent = (thinkingContent ? thinkingContent + '\n' : '') + unclosedThinkMatch[1].trim();
+                        mainContent = mainContent.replace(/<think>[\s\S]*$/, '').trim();
+                    }
+                    
+                    // <thinking> 开始但未结束
+                    const unclosedThinkingMatch = mainContent.match(/<thinking>([\s\S]*)$/);
+                    if (unclosedThinkingMatch && !mainContent.includes('</thinking>')) {
+                        thinkingContent = (thinkingContent ? thinkingContent + '\n' : '') + unclosedThinkingMatch[1].trim();
+                        mainContent = mainContent.replace(/<thinking>[\s\S]*$/, '').trim();
+                    }
+                    
+                    return { thinkingContent, mainContent };
+                };
+                
                 const updateUI = () => {
                     if (updateScheduled) return;
                     updateScheduled = true;
                     requestAnimationFrame(() => {
-                        const thinkMatch = fullContent.match(/<think>([\s\S]*?)<\/think>/);
-                        let thinkingContent = '';
-                        let mainContent = fullContent;
-
-                        if (thinkMatch) {
-                            thinkingContent = thinkMatch[1].trim();
-                            mainContent = fullContent.replace(/<think>[\s\S]*?<\/think>/, '').trim();
-                        }
+                        // 使用通用函数提取思考过程
+                        const { thinkingContent, mainContent } = extractThinkingContent(fullContent, reasoningContent);
 
                         let html = '';
                         if (thinkingContent) {
@@ -2846,6 +2888,7 @@ ${pageContent}
                             hljs.highlightElement(block);
                         });
 
+                        // 添加折叠功能
                         const thinkingHeader = aiMsg.querySelector('.thinking-header');
                         if (thinkingHeader && !thinkingHeader.dataset.listenerAdded) {
                             thinkingHeader.dataset.listenerAdded = 'true';
@@ -2872,19 +2915,64 @@ ${pageContent}
                     try {
                         const parsed = JSON.parse(data);
                         let delta = '';
+                        let reasoningDelta = '';
+                        
                         if (parsed.choices && parsed.choices.length > 0) {
                             const choice = parsed.choices[0];
-                            if (choice.delta && choice.delta.content) {
-                                delta = choice.delta.content;
-                            } else if (choice.message && choice.message.content) {
-                                delta = choice.message.content;
+                            
+                            // 处理常规内容
+                            if (choice.delta) {
+                                // OpenAI/通用格式
+                                if (choice.delta.content) {
+                                    delta = choice.delta.content;
+                                }
+                                // OpenAI o1系列的reasoning_content
+                                if (choice.delta.reasoning_content) {
+                                    reasoningDelta = choice.delta.reasoning_content;
+                                }
+                                // 部分API使用reasoning字段
+                                if (choice.delta.reasoning) {
+                                    reasoningDelta = choice.delta.reasoning;
+                                }
+                            } else if (choice.message) {
+                                if (choice.message.content) {
+                                    delta = choice.message.content;
+                                }
+                                // 非流式响应中的reasoning_content
+                                if (choice.message.reasoning_content) {
+                                    reasoningDelta = choice.message.reasoning_content;
+                                }
                             } else if (choice.text) {
                                 delta = choice.text;
                             }
                         } else if (parsed.content) {
                             delta = parsed.content;
                         }
+                        
+                        // 处理Claude格式的thinking
+                        if (parsed.type === 'content_block_delta') {
+                            if (parsed.delta && parsed.delta.type === 'thinking_delta') {
+                                reasoningDelta = parsed.delta.thinking || '';
+                            } else if (parsed.delta && parsed.delta.type === 'text_delta') {
+                                delta = parsed.delta.text || '';
+                            }
+                        }
+                        
+                        // 处理DeepSeek格式
+                        if (parsed.choices && parsed.choices[0]) {
+                            const choice = parsed.choices[0];
+                            // DeepSeek的reasoning_content在delta中
+                            if (choice.delta && choice.delta.reasoning_content !== undefined) {
+                                reasoningDelta = choice.delta.reasoning_content;
+                            }
+                        }
 
+                        // 累积reasoning内容
+                        if (reasoningDelta) {
+                            reasoningContent += reasoningDelta;
+                            updateUI();
+                        }
+                        
                         if (delta) {
                             fullContent += delta;
                             updateUI();
@@ -2894,14 +2982,17 @@ ${pageContent}
                     }
                 };
 
+                // 构建消息历史
                 const buildMessages = () => {
                     const messages = [];
                     if (currentSystemPrompt) {
                         messages.push({role: 'system', content: currentSystemPrompt});
                     }
                     
+                    // 获取历史消息
                     const memoryRounds = modelParams.memory_rounds;
                     if (memoryRounds > 0 && conversationMessages.length > 0) {
+                        // 计算需要包含的消息数量（每轮包含用户和AI两条消息）
                         const maxMessages = memoryRounds * 2;
                         const startIndex = Math.max(0, conversationMessages.length - maxMessages);
                         const historyMessages = conversationMessages.slice(startIndex);
@@ -2914,6 +3005,7 @@ ${pageContent}
                         });
                     }
                     
+                    // 添加当前用户消息
                     messages.push({role: 'user', content: actualPrompt});
                     return messages;
                 };
@@ -2926,6 +3018,7 @@ ${pageContent}
                     stream: true
                 };
 
+                // 优先尝试使用 fetch (支持流式)
                 try {
                     aiMsg.textContent = '';
                     const response = await fetch(finalUrl, {
@@ -2955,30 +3048,102 @@ ${pageContent}
                         lines.forEach(processStreamLine);
                     }
 
+                    // 处理剩余 buffer
                     if (buffer) processStreamLine(buffer);
                     isStreamComplete = true;
                     
-                    // 等待最后一次 UI 更新完成
+                    // 等待最后一次 UI 更新完成后再添加按钮
                     requestAnimationFrame(() => {
-                        // 流式完成后添加操作按钮
-                        const aiActions = document.createElement('div');
-                        aiActions.className = 'message-actions';
-                        safeInnerHTML(aiActions, `
-                            <button class="message-action-btn copy-msg-btn" title="复制">📋</button>
-                            <button class="message-action-btn delete-msg-btn" title="删除">🗑️</button>
-                            <button class="message-action-btn regenerate-msg-btn" title="重新生成">🔄</button>
-                        `);
-                        aiMsg.appendChild(aiActions);
-                        aiMsg.dataset.index = conversationMessages.length;
+                        updateUI();
+                        requestAnimationFrame(() => {
+                            // 流式完成后添加操作按钮
+                            const aiActions = document.createElement('div');
+                            aiActions.className = 'message-actions';
+                            safeInnerHTML(aiActions, `
+                                <button class="message-action-btn copy-msg-btn" title="复制">📋</button>
+                                <button class="message-action-btn delete-msg-btn" title="删除">🗑️</button>
+                                <button class="message-action-btn regenerate-msg-btn" title="重新生成">🔄</button>
+                            `);
+                            aiMsg.appendChild(aiActions);
+                            aiMsg.dataset.index = conversationMessages.length;
 
-                        conversationMessages.push({role: 'ai', content: fullContent, html: aiMsg.innerHTML});
-                        saveCurrentConversation();
+                            // 保存AI回复
+                            conversationMessages.push({role: 'ai', content: fullContent, html: aiMsg.innerHTML});
+                            saveCurrentConversation();
+                        });
                     });
 
                 } catch (fetchError) {
                     console.warn('Fetch failed, falling back to GM_xmlhttpRequest:', fetchError);
-                    // GM_xmlhttpRequest 回退逻辑保持不变...
-                    aiMsg.textContent = '请求失败: ' + fetchError.message;
+
+                    // 如果 fetch 失败 (可能是 CORS)，回退到 GM_xmlhttpRequest
+                    // 注意：GM_xmlhttpRequest 在某些环境下可能不支持流式，会退化为一次性输出
+                    GM_xmlhttpRequest({
+                        method: 'POST',
+                        url: finalUrl,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${provider.key}`
+                        },
+                        data: JSON.stringify(requestData),
+                        onloadstart: () => {
+                            if (!fullContent) aiMsg.textContent = '正在重试...';
+                        },
+                        onprogress: (response) => {
+                            const responseText = response.responseText;
+                            if (!responseText) return;
+
+                            const newText = responseText.slice(lastIndex);
+                            if (newText.length === 0) return;
+                            lastIndex = responseText.length;
+                            buffer += newText;
+
+                            const lines = buffer.split('\n');
+                            buffer = lines.pop();
+
+                            lines.forEach(processStreamLine);
+                        },
+                        onload: (response) => {
+                            if (buffer) processStreamLine(buffer);
+                            isStreamComplete = true;
+                            updateUI();
+
+                            // 保存AI回复
+                            if (fullContent) {
+                                // 添加AI消息操作按钮
+                                const aiActions = document.createElement('div');
+                                aiActions.className = 'message-actions';
+                                safeInnerHTML(aiActions, `
+                                    <button class="message-action-btn copy-msg-btn" title="复制">📋</button>
+                                    <button class="message-action-btn delete-msg-btn" title="删除">🗑️</button>
+                                    <button class="message-action-btn regenerate-msg-btn" title="重新生成">🔄</button>
+                                `);
+                                aiMsg.appendChild(aiActions);
+                                aiMsg.dataset.index = conversationMessages.length;
+
+                                conversationMessages.push({role: 'ai', content: fullContent, html: aiMsg.innerHTML});
+                                saveCurrentConversation();
+                            }
+
+                            if (!fullContent) {
+                                // 最后的兜底解析
+                                try {
+                                    const data = JSON.parse(response.responseText);
+                                    if (data.choices && data.choices[0]?.message?.content) {
+                                        fullContent = data.choices[0].message.content;
+                                        updateUI();
+                                    } else if (data.error) {
+                                        aiMsg.textContent = 'API错误: ' + (data.error.message || JSON.stringify(data.error));
+                                    }
+                                } catch (e) {
+                                    aiMsg.textContent = '请求失败: ' + (fetchError.message || '未知错误');
+                                }
+                            }
+                        },
+                        onerror: (err) => {
+                            aiMsg.textContent = '请求失败: ' + (err.statusText || '网络错误');
+                        }
+                    });
                 }
             } catch (e) {
                 aiMsg.textContent = '发送失败: ' + e.message;
@@ -3143,19 +3308,67 @@ ${pageContent}
                 // UI 更新节流
                 let updateScheduled = false;
                 let isStreamComplete = false;
+                // 用于存储从API响应中提取的reasoning_content
+                let reasoningContent = '';
+                
+                // 提取思考过程的通用函数，支持多种格式
+                const extractThinkingContent = (content, reasoning = '') => {
+                    let thinkingContent = reasoning;
+                    let mainContent = content;
+                    
+                    // 格式1: <think>...</think> (智谱AI, DeepSeek等)
+                    const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/);
+                    if (thinkMatch) {
+                        thinkingContent = (thinkingContent ? thinkingContent + '
+\n' : '') + thinkMatch[1].trim();
+                        mainContent = content.replace(/<think>[\s\S]*?<\/think>/, '').trim();
+                    }
+                    
+                    // 格式2: <thinking>...</thinking> (部分模型)
+                    const thinkingMatch = mainContent.match(/<thinking>([\s\S]*?)<\/thinking>/);
+                    if (thinkingMatch) {
+                        thinkingContent = (thinkingContent ? thinkingContent + '
+
+' : '') + thinkingMatch[1].trim();
+                        mainContent = mainContent.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
+                    }
+                    
+                    // 格式3: <reasoning>...</reasoning> (部分模型)
+                    const reasoningMatch = mainContent.match(/<reasoning>([\s\S]*?)<\/reasoning>/);
+                    if (reasoningMatch) {
+                        thinkingContent = (thinkingContent ? thinkingContent + '\n
+' : '') + reasoningMatch[1].trim();
+                        mainContent = mainContent.replace(/<reasoning>[\s\S]*?<\/reasoning>/, '').trim();
+                    }
+                    
+                    // 格式4: 处理未闭合的思考标签（流式输出时可能出现）
+                    // <think> 开始但未结束
+                    const unclosedThinkMatch = mainContent.match(/<think>([\s\S]*)$/);
+                    if (unclosedThinkMatch && !mainContent.includes('</think>')) {
+                        thinkingContent = (thinkingContent ? thinkingContent + '
+
+' : '') + unclosedThinkMatch[1].trim();
+                        mainContent = mainContent.replace(/<think>[\s\S]*$/, '').trim();
+                    }
+                    
+                    // <thinking> 开始但未结束
+                    const unclosedThinkingMatch = mainContent.match(/<thinking>([\s\S]*)$/);
+                    if (unclosedThinkingMatch && !mainContent.includes('</thinking>')) {
+                        thinkingContent = (thinkingContent ? thinkingContent + '
+
+' : '') + unclosedThinkingMatch[1].trim();
+                        mainContent = mainContent.replace(/<thinking>[\s\S]*$/, '').trim();
+                    }
+                    
+                    return { thinkingContent, mainContent };
+                };
+                
                 const updateUI = () => {
                     if (updateScheduled) return;
                     updateScheduled = true;
                     requestAnimationFrame(() => {
-                        // 分离思考过程和正文
-                        const thinkMatch = fullContent.match(/<think>([\s\S]*?)<\/think>/);
-                        let thinkingContent = '';
-                        let mainContent = fullContent;
-
-                        if (thinkMatch) {
-                            thinkingContent = thinkMatch[1].trim();
-                            mainContent = fullContent.replace(/<think>[\s\S]*?<\/think>/, '').trim();
-                        }
+                        // 使用通用函数提取思考过程
+                        const { thinkingContent, mainContent } = extractThinkingContent(fullContent, reasoningContent);
 
                         let html = '';
                         if (thinkingContent) {
@@ -3204,19 +3417,64 @@ ${pageContent}
                     try {
                         const parsed = JSON.parse(data);
                         let delta = '';
+                        let reasoningDelta = '';
+                        
                         if (parsed.choices && parsed.choices.length > 0) {
                             const choice = parsed.choices[0];
-                            if (choice.delta && choice.delta.content) {
-                                delta = choice.delta.content;
-                            } else if (choice.message && choice.message.content) {
-                                delta = choice.message.content;
+                            
+                            // 处理常规内容
+                            if (choice.delta) {
+                                // OpenAI/通用格式
+                                if (choice.delta.content) {
+                                    delta = choice.delta.content;
+                                }
+                                // OpenAI o1系列的reasoning_content
+                                if (choice.delta.reasoning_content) {
+                                    reasoningDelta = choice.delta.reasoning_content;
+                                }
+                                // 部分API使用reasoning字段
+                                if (choice.delta.reasoning) {
+                                    reasoningDelta = choice.delta.reasoning;
+                                }
+                            } else if (choice.message) {
+                                if (choice.message.content) {
+                                    delta = choice.message.content;
+                                }
+                                // 非流式响应中的reasoning_content
+                                if (choice.message.reasoning_content) {
+                                    reasoningDelta = choice.message.reasoning_content;
+                                }
                             } else if (choice.text) {
                                 delta = choice.text;
                             }
                         } else if (parsed.content) {
                             delta = parsed.content;
                         }
+                        
+                        // 处理Claude格式的thinking
+                        if (parsed.type === 'content_block_delta') {
+                            if (parsed.delta && parsed.delta.type === 'thinking_delta') {
+                                reasoningDelta = parsed.delta.thinking || '';
+                            } else if (parsed.delta && parsed.delta.type === 'text_delta') {
+                                delta = parsed.delta.text || '';
+                            }
+                        }
+                        
+                        // 处理DeepSeek格式
+                        if (parsed.choices && parsed.choices[0]) {
+                            const choice = parsed.choices[0];
+                            // DeepSeek的reasoning_content在delta中
+                            if (choice.delta && choice.delta.reasoning_content !== undefined) {
+                                reasoningDelta = choice.delta.reasoning_content;
+                            }
+                        }
 
+                        // 累积reasoning内容
+                        if (reasoningDelta) {
+                            reasoningContent += reasoningDelta;
+                            updateUI();
+                        }
+                        
                         if (delta) {
                             fullContent += delta;
                             updateUI();
