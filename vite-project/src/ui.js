@@ -113,11 +113,11 @@ export const createSidebar = () => {
     tabs.className = 'tabs';
     tabs.id = 'tabs-container';
 
-    ['chat', 'providers', 'prompts', 'system'].forEach((tab, i) => {
+    ['chat', 'translate', 'providers', 'prompts', 'system'].forEach((tab, i) => {
         const btn = document.createElement('button');
         btn.className = i === 0 ? 'tab active' : 'tab';
         btn.dataset.tab = tab;
-        btn.textContent = tab === 'chat' ? '对话' : tab === 'providers' ? 'AI提供商' : tab === 'prompts' ? '提示词库' : '系统配置';
+        btn.textContent = tab === 'chat' ? '对话' : tab === 'translate' ? '翻译' : tab === 'providers' ? 'AI提供商' : tab === 'prompts' ? '提示词库' : '系统配置';
         tabs.appendChild(btn);
     });
 
@@ -169,6 +169,21 @@ export const createSidebar = () => {
     const conversationsSidebar = document.createElement('div');
     conversationsSidebar.className = 'conversations-sidebar';
     conversationsSidebar.id = 'conversations-sidebar';
+
+    const conversationsToolbar = document.createElement('div');
+    conversationsToolbar.className = 'conversations-toolbar';
+
+    const batchDeleteConversationBtn = document.createElement('button');
+    batchDeleteConversationBtn.id = 'batch-delete-conversation-btn';
+    batchDeleteConversationBtn.textContent = '批量删除';
+
+    const newConversationBtn = document.createElement('button');
+    newConversationBtn.id = 'new-conversation-btn-toolbar';
+    newConversationBtn.textContent = '新建对话';
+
+    conversationsToolbar.appendChild(batchDeleteConversationBtn);
+    conversationsToolbar.appendChild(newConversationBtn);
+    conversationsSidebar.appendChild(conversationsToolbar);
 
     const chatMain = document.createElement('div');
     chatMain.className = 'chat-main';
@@ -389,12 +404,47 @@ export const createSidebar = () => {
                     <option value="">未设置</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label>默认翻译提示词</label>
+                <select id="default-translate-prompt-select" class="config-select">
+                    <option value="">未设置</option>
+                </select>
+            </div>
             <button id="save-system-config" class="save-btn">保存配置</button>
         </div>
     `;
     systemTab.appendChild(systemContainer);
 
+    // 翻译标签页
+    const translateTab = document.createElement('div');
+    translateTab.className = 'tab-content';
+    translateTab.id = 'translate-tab';
+    const translateContainer = document.createElement('div');
+    translateContainer.className = 'translate-container';
+    translateContainer.innerHTML = `
+        <h3>AI 翻译</h3>
+        <div class="translate-main">
+            <div class="translate-input-area">
+                <textarea id="translate-input" placeholder="输入需要翻译的内容..."></textarea>
+            </div>
+            <div class="translate-output-area">
+                <div id="translate-output" class="translate-output"></div>
+            </div>
+        </div>
+        <div class="translate-controls">
+            <div class="form-group">
+                <label>翻译风格 (提示词)</label>
+                <select id="translate-prompt-select" class="config-select">
+                    <option value="">默认</option>
+                </select>
+            </div>
+            <button id="translate-btn" class="action-btn">翻译</button>
+        </div>
+    `;
+    translateTab.appendChild(translateContainer);
+
     content.appendChild(chatTab);
+    content.appendChild(translateTab);
     content.appendChild(providersTab);
     content.appendChild(promptsTab);
     content.appendChild(systemTab);

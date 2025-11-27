@@ -642,6 +642,9 @@ export const addStyles = () => {
             font-family: inherit;
             transition: var(--ai-transition, all 0.2s ease);
         }
+        .new-conv-btn {
+            background: #2ecc71;
+        }
         .batch-delete-conv-btn {
             background: #e74c3c;
         }

@@ -628,6 +628,13 @@ import 'highlight.js/styles/github-dark.css';
                  promptSelectorBtn.classList.remove('selected');
                  promptSelectorBtn.title = '选择提示词';
             }
+            if (systemConfig.defaultTranslatePrompt !== null && systemConfig.defaultTranslatePrompt !== "") {
+                const translatePrompts = ConfigManager.getTranslatePrompts();
+                const prompt = translatePrompts[systemConfig.defaultTranslatePrompt];
+                if (prompt) {
+                    sidebar.querySelector('#translate-prompt-select').value = systemConfig.defaultTranslatePrompt;
+                }
+            }
         };
 
         const renderModelDropdown = () => {
@@ -682,41 +689,47 @@ import 'highlight.js/styles/github-dark.css';
 
         const renderConversations = () => {
             const conversations = ConfigManager.getConversations();
-            const list = document.querySelector('.conversations-list');
-            if (!list) {
-                const sidebar = document.querySelector('#conversations-sidebar');
-                sidebar.innerHTML = `
-                    <div class="conversations-toolbar">
-                        <button class="batch-delete-conv-btn">批量删除</button>
-                    </div>
-                    <div class="conversations-list"></div>
-                `;
-                
-                sidebar.querySelector('.batch-delete-conv-btn').addEventListener('click', () => {
-                    const checkboxes = sidebar.querySelectorAll('.conv-checkbox:checked');
-                    if (checkboxes.length === 0) {
-                        alert('请选择要删除的对话');
-                        return;
-                    }
-                    if (!confirm(`确定删除选中的 ${checkboxes.length} 个对话吗？`)) return;
+            const sidebar = document.querySelector('#conversations-sidebar');
 
-                    const conversations = ConfigManager.getConversations();
-                    const idsToDelete = Array.from(checkboxes).map(cb => cb.dataset.id);
-                    const filtered = conversations.filter(c => !idsToDelete.includes(c.id));
-                    ConfigManager.saveConversations(filtered);
+            // Always render the toolbar and list container to ensure they are present
+            sidebar.innerHTML = `
+                <div class="conversations-toolbar">
+                    <button class="new-conv-btn">新建对话</button>
+                    <button class="batch-delete-conv-btn">批量删除</button>
+                </div>
+                <div class="conversations-list"></div>
+            `;
 
-                    if (idsToDelete.includes(currentConversationId)) {
-                        createNewConversation();
+            // Add event listeners to the newly created buttons
+            sidebar.querySelector('.new-conv-btn').addEventListener('click', createNewConversation);
+
+            sidebar.querySelector('.batch-delete-conv-btn').addEventListener('click', () => {
+                const checkboxes = sidebar.querySelectorAll('.conv-checkbox:checked');
+                if (checkboxes.length === 0) {
+                    alert('请选择要删除的对话');
+                    return;
+                }
+                if (!confirm(`确定删除选中的 ${checkboxes.length} 个对话吗？`)) return;
+
+                const currentConversations = ConfigManager.getConversations();
+                const idsToDelete = Array.from(checkboxes).map(cb => cb.dataset.id);
+                const filtered = currentConversations.filter(c => !idsToDelete.includes(c.id));
+                ConfigManager.saveConversations(filtered);
+
+                if (idsToDelete.includes(currentConversationId)) {
+                    const remainingConversations = ConfigManager.getConversations();
+                    if (remainingConversations.length > 0) {
+                        loadConversation(remainingConversations[0].id);
                     } else {
-                        renderConversations();
+                        createNewConversation();
                     }
-                });
-                
-                return renderConversations();
-            }
+                } else {
+                    renderConversations();
+                }
+            });
 
-            list.textContent = '';
-
+            // Populate the list
+            const list = sidebar.querySelector('.conversations-list');
             conversations.forEach((conv) => {
                 const item = document.createElement('div');
                 item.className = 'conversation-item';
@@ -724,7 +737,7 @@ import 'highlight.js/styles/github-dark.css';
                     item.classList.add('active');
                 }
                 item.dataset.id = conv.id;
-                
+
                 safeInnerHTML(item, `
                     <input type="checkbox" class="conv-checkbox" data-id="${conv.id}">
                     <span class="conv-title">${conv.title}</span>
@@ -734,13 +747,13 @@ import 'highlight.js/styles/github-dark.css';
                         <button class="conv-action-btn delete-conv-btn" title="删除">🗑️</button>
                     </div>
                 `);
-                
+
                 list.appendChild(item);
             });
         };
 
         const saveCurrentConversation = () => {
-            if (!currentConversationId || conversationMessages.length === 0) return;
+            if (!currentConversationId) return;
 
             const conversations = ConfigManager.getConversations();
             const index = conversations.findIndex(c => c.id === currentConversationId);
@@ -843,7 +856,12 @@ import 'highlight.js/styles/github-dark.css';
                 ConfigManager.saveConversations(filtered);
 
                 if (id === currentConversationId) {
-                    createNewConversation();
+                    const remainingConversations = ConfigManager.getConversations();
+                    if (remainingConversations.length > 0) {
+                        loadConversation(remainingConversations[0].id);
+                    } else {
+                        createNewConversation();
+                    }
                 } else {
                     renderConversations();
                 }
@@ -1085,19 +1103,10 @@ ${pageContent}
                             hljs.highlightElement(block);
                         });
 
-                        // 添加折叠功能
-                        const thinkingHeader = aiMsg.querySelector('.thinking-header');
-                        if (thinkingHeader && !thinkingHeader.dataset.listenerAdded) {
-                            thinkingHeader.dataset.listenerAdded = 'true';
-                            thinkingHeader.addEventListener('click', () => {
-                                const toggle = thinkingHeader.querySelector('.thinking-toggle');
-                                const content = thinkingHeader.nextElementSibling;
-                                toggle.classList.toggle('collapsed');
-                                content.classList.toggle('collapsed');
-                            });
-                        }
+                        // 折叠功能已通过事件委托实现
 
-                        messages.scrollTop = messages.scrollHeight;
+                        // 持续滚动到底部
+                        aiMsg.scrollIntoView({ behavior: 'auto', block: 'end' });
                         updateScheduled = false;
                     });
                 };
@@ -1584,19 +1593,10 @@ ${pageContent}
                             hljs.highlightElement(block);
                         });
 
-                        // 添加折叠功能
-                        const thinkingHeader = aiMsg.querySelector('.thinking-header');
-                        if (thinkingHeader && !thinkingHeader.dataset.listenerAdded) {
-                            thinkingHeader.dataset.listenerAdded = 'true';
-                            thinkingHeader.addEventListener('click', () => {
-                                const toggle = thinkingHeader.querySelector('.thinking-toggle');
-                                const content = thinkingHeader.nextElementSibling;
-                                toggle.classList.toggle('collapsed');
-                                content.classList.toggle('collapsed');
-                            });
-                        }
+                        // 折叠功能已通过事件委托实现
 
-                        messages.scrollTop = messages.scrollHeight;
+                        // 持续滚动到底部
+                        aiMsg.scrollIntoView({ behavior: 'auto', block: 'end' });
                         updateScheduled = false;
                     });
                 };
@@ -1848,6 +1848,17 @@ ${pageContent}
 
         // 消息操作事件处理
         sidebar.querySelector('#messages').addEventListener('click', async (e) => {
+            const thinkingHeader = e.target.closest('.thinking-header');
+            if (thinkingHeader) {
+                const toggle = thinkingHeader.querySelector('.thinking-toggle');
+                const content = thinkingHeader.nextElementSibling;
+                if (toggle && content) {
+                    toggle.classList.toggle('collapsed');
+                    content.classList.toggle('collapsed');
+                }
+                return;
+            }
+
             const btn = e.target.closest('.message-action-btn');
             if (!btn) return;
 
@@ -1881,42 +1892,31 @@ ${pageContent}
             } else if (btn.classList.contains('regenerate-msg-btn')) {
                 // 重新生成
                 if (!confirm('确定重新生成此回复吗？')) return;
-                
-                // 删除当前AI消息
-                conversationMessages.splice(msgIndex, 1);
-                msgDiv.remove();
-                
-                // 更新后续消息的索引
-                const allMsgs = sidebar.querySelectorAll('#messages .message');
-                allMsgs.forEach((m, i) => {
-                    m.dataset.index = i;
-                });
-                
-                // 获取上一条用户消息并重新发送
-                const userMsg = conversationMessages[msgIndex - 1];
-                if (userMsg && userMsg.role === 'user') {
-                    // 删除用户消息，因为sendMessage会重新添加
-                    conversationMessages.splice(msgIndex - 1, 1);
-                    const userMsgDiv = sidebar.querySelector(`#messages .message[data-index="${msgIndex - 1}"]`);
-                    if (userMsgDiv) userMsgDiv.remove();
 
-                    // 更新索引
-                    const updatedMsgs = sidebar.querySelectorAll('#messages .message');
-                    updatedMsgs.forEach((m, i) => {
-                        m.dataset.index = i;
+                // 找到对应的用户消息
+                const userMsgIndex = msgIndex - 1;
+                if (userMsgIndex < 0) return; // Sanity check
+
+                const userMsg = conversationMessages[userMsgIndex];
+
+                if (userMsg && userMsg.role === 'user') {
+                    // 截断历史记录，从用户消息开始（即删除用户和AI的回复）
+                    conversationMessages.splice(userMsgIndex);
+
+                    // 从DOM中移除对应的用户消息及之后的所有消息
+                    const allMsgs = sidebar.querySelectorAll('#messages .message');
+                    allMsgs.forEach(m => {
+                        if (parseInt(m.dataset.index) >= userMsgIndex) {
+                            m.remove();
+                        }
                     });
 
-                    if (userMsg.isSummary) {
-                        await sendMessage({
-                            text: userMsg.content,
-                            isSummary: true,
-                            displayText: userMsg.displayText
-                        });
-                    } else {
-                        const input = sidebar.querySelector('#user-input');
-                        input.value = userMsg.content;
-                        await sendMessage();
-                    }
+                    // 使用sendMessage重新发送，它会把用户消息和AI回复都加回来
+                    await sendMessage({
+                        text: userMsg.content,
+                        isSummary: userMsg.isSummary || false,
+                        displayText: userMsg.displayText
+                    });
                 }
             }
         });
@@ -2031,6 +2031,7 @@ ${pageContent}
             const systemConfig = ConfigManager.getSystemConfig();
             const modelSelect = sidebar.querySelector('#default-model-select');
             const promptSelect = sidebar.querySelector('#default-prompt-select');
+            const translatePromptSelect = sidebar.querySelector('#default-translate-prompt-select');
             
             // 填充模型选项
             modelSelect.innerHTML = '<option value="">未设置</option>';
@@ -2061,15 +2062,30 @@ ${pageContent}
                 }
                 promptSelect.appendChild(option);
             });
+
+            // 填充翻译提示词选项
+            translatePromptSelect.innerHTML = '<option value="">未设置</option>';
+            const translatePrompts = ConfigManager.getTranslatePrompts();
+            translatePrompts.forEach((prompt, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = prompt.title || '未命名';
+                if (systemConfig.defaultTranslatePrompt === index) {
+                    option.selected = true;
+                }
+                translatePromptSelect.appendChild(option);
+            });
         };
         
         sidebar.querySelector('#save-system-config').addEventListener('click', () => {
             const modelSelect = sidebar.querySelector('#default-model-select');
             const promptSelect = sidebar.querySelector('#default-prompt-select');
+            const translatePromptSelect = sidebar.querySelector('#default-translate-prompt-select');
             
             const config = {
                 defaultModel: modelSelect.value || null,
-                defaultPrompt: promptSelect.value ? parseInt(promptSelect.value) : null
+                defaultPrompt: promptSelect.value ? parseInt(promptSelect.value) : null,
+                defaultTranslatePrompt: translatePromptSelect.value ? parseInt(translatePromptSelect.value) : null
             };
             
             ConfigManager.saveSystemConfig(config);
@@ -2081,9 +2097,91 @@ ${pageContent}
             tab.addEventListener('click', () => {
                 if (tab.dataset.tab === 'system') {
                     renderSystemConfig();
+                } else if (tab.dataset.tab === 'translate') {
+                    renderTranslatePrompts();
                 }
             });
         });
+
+        // 翻译功能
+        const renderTranslatePrompts = () => {
+            const prompts = ConfigManager.getTranslatePrompts();
+            const select = sidebar.querySelector('#translate-prompt-select');
+            select.innerHTML = '<option value="">默认</option>';
+            prompts.forEach((prompt, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = prompt.title;
+                select.appendChild(option);
+            });
+        };
+
+        const translate = async () => {
+            const input = sidebar.querySelector('#translate-input').value.trim();
+            const output = sidebar.querySelector('#translate-output');
+            const promptSelect = sidebar.querySelector('#translate-prompt-select');
+            const selectedPromptIndex = promptSelect.value;
+
+            if (!input) {
+                alert('请输入要翻译的内容');
+                return;
+            }
+            if (!currentSelectedModel) {
+                alert('请先选择一个模型');
+                return;
+            }
+
+            const prompts = ConfigManager.getTranslatePrompts();
+            let systemPrompt = 'Translate the following text. Be accurate and natural.';
+            if (selectedPromptIndex !== "" && prompts[selectedPromptIndex]) {
+                systemPrompt = prompts[selectedPromptIndex].content;
+            }
+
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: input }
+            ];
+
+            const config = JSON.parse(currentSelectedModel);
+            const providers = ConfigManager.getProviders();
+            const provider = providers[config.provider];
+            const finalUrl = normalizeApiUrl(provider.url);
+
+            output.textContent = '翻译中...';
+
+            try {
+                const response = await fetch(finalUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${provider.key}`
+                    },
+                    body: JSON.stringify({
+                        model: config.model,
+                        messages: messages,
+                        stream: false
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.choices && data.choices[0].message && data.choices[0].message.content) {
+                    output.textContent = data.choices[0].message.content;
+                } else {
+                    output.textContent = '翻译失败，未收到有效回复。';
+                }
+            } catch (error) {
+                console.error('Translation error:', error);
+                output.textContent = `翻译出错: ${error.message}`;
+            }
+        };
+
+        sidebar.querySelector('#translate-btn').addEventListener('click', translate);
+        
+        renderTranslatePrompts();
     };
 
     if (document.readyState === 'loading') {
