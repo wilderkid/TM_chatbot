@@ -2,6 +2,7 @@ import { GM_xmlhttpRequest } from 'vite-plugin-monkey/dist/client';
 import { ConfigManager } from './config.js';
 import { safeInnerHTML, applyTheme, createSidebar, createTriggerButton } from './ui.js';
 import { addStyles } from './styles.js';
+import { LANGUAGES } from './languages.js';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
@@ -14,6 +15,18 @@ import 'highlight.js/styles/github-dark.css';
         addStyles();
         const triggerBtn = createTriggerButton();
         const sidebar = createSidebar();
+
+        // 恢复侧边栏状态和样式
+        if (ConfigManager.getSidebarOpen()) {
+            sidebar.classList.add('open');
+        }
+        const savedStyle = ConfigManager.getSidebarStyle();
+        if (savedStyle) {
+            if (savedStyle.width) sidebar.style.width = savedStyle.width;
+            if (savedStyle.height) sidebar.style.height = savedStyle.height;
+            if (savedStyle.left) sidebar.style.left = savedStyle.left;
+            if (savedStyle.top) sidebar.style.top = savedStyle.top;
+        }
 
         // 拖拽 Trigger Button Logic
         let isDraggingTrigger = false;
@@ -75,10 +88,12 @@ import 'highlight.js/styles/github-dark.css';
                 return;
             }
             sidebar.classList.toggle('open');
+            ConfigManager.saveSidebarOpen(sidebar.classList.contains('open'));
         });
 
         sidebar.querySelector('.close-btn').addEventListener('click', () => {
             sidebar.classList.remove('open');
+            ConfigManager.saveSidebarOpen(false);
         });
 
         // 主题切换
@@ -175,13 +190,6 @@ import 'highlight.js/styles/github-dark.css';
             }
         });
 
-        document.addEventListener('mouseup', () => {
-            if (isResizing) {
-                isResizing = false;
-                resizeType = '';
-                sidebar.classList.remove('resizing');
-            }
-        });
 
         // 拖拽移动窗口
         const header = sidebar.querySelector('.sidebar-header');
@@ -215,9 +223,30 @@ import 'highlight.js/styles/github-dark.css';
         });
 
         document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                resizeType = '';
+                sidebar.classList.remove('resizing');
+                
+                // 保存调整后的大小和位置
+                ConfigManager.saveSidebarStyle({
+                    width: sidebar.style.width,
+                    height: sidebar.style.height,
+                    left: sidebar.style.left,
+                    top: sidebar.style.top
+                });
+            }
             if (isDragging) {
                 isDragging = false;
                 sidebar.classList.remove('dragging');
+                
+                // 保存拖动后的位置
+                ConfigManager.saveSidebarStyle({
+                    width: sidebar.style.width,
+                    height: sidebar.style.height,
+                    left: sidebar.style.left,
+                    top: sidebar.style.top
+                });
             }
         });
 
@@ -230,6 +259,26 @@ import 'highlight.js/styles/github-dark.css';
                 tab.classList.add('active');
                 sidebar.querySelector(`#${tabName}-tab`).classList.add('active');
             });
+        });
+
+        // 提示词帮助弹窗逻辑
+        const helpIcon = sidebar.querySelector('#translate-prompt-help');
+        const helpModal = sidebar.querySelector('#prompt-help-modal');
+        const closeModalBtn = helpModal.querySelector('.modal-close-btn');
+
+        helpIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            helpModal.style.display = 'block';
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            helpModal.style.display = 'none';
+        });
+
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+                helpModal.style.display = 'none';
+            }
         });
 
         // AI提供商管理
@@ -602,7 +651,9 @@ import 'highlight.js/styles/github-dark.css';
         const modelNameSpan = sidebar.querySelector('#model-name');
         let currentSelectedModel = null;
         let currentSystemPrompt = '';
+        let currentTranslatePromptIndex = "";
         const promptSelectorBtn = sidebar.querySelector('#prompt-selector-btn');
+        let isQaMode = false;
 
         const applySystemDefaults = () => {
             const systemConfig = ConfigManager.getSystemConfig();
@@ -629,10 +680,12 @@ import 'highlight.js/styles/github-dark.css';
                  promptSelectorBtn.title = '选择提示词';
             }
             if (systemConfig.defaultTranslatePrompt !== null && systemConfig.defaultTranslatePrompt !== "") {
-                const translatePrompts = ConfigManager.getTranslatePrompts();
-                const prompt = translatePrompts[systemConfig.defaultTranslatePrompt];
-                if (prompt) {
-                    sidebar.querySelector('#translate-prompt-select').value = systemConfig.defaultTranslatePrompt;
+                const prompts = ConfigManager.getPrompts();
+                const prompt = prompts[systemConfig.defaultTranslatePrompt];
+                // 确保提示词存在且类型正确
+                if (prompt && prompt.type === 'translate') {
+                    // 设置当前翻译提示词的索引，后续渲染时会使用此值
+                    currentTranslatePromptIndex = systemConfig.defaultTranslatePrompt.toString();
                 }
             }
         };
@@ -1356,6 +1409,40 @@ ${pageContent}
             }
         });
 
+        // 网页问答模式切换
+        const qaBtn = sidebar.querySelector('#qa-page-btn');
+        const modeIndicator = sidebar.querySelector('#mode-indicator');
+
+        const toggleQaMode = (forceOff = false) => {
+            if (forceOff) {
+                isQaMode = false;
+            } else {
+                isQaMode = !isQaMode;
+            }
+
+            if (isQaMode) {
+                modeIndicator.textContent = '网页问答模式已开启';
+                modeIndicator.style.display = 'block';
+                setTimeout(() => modeIndicator.classList.add('visible'), 10);
+                qaBtn.classList.add('selected');
+                sidebar.querySelector('#user-input').focus();
+            } else {
+                modeIndicator.classList.remove('visible');
+                setTimeout(() => {
+                    if (!isQaMode) modeIndicator.style.display = 'none';
+                }, 300);
+                qaBtn.classList.remove('selected');
+            }
+        };
+
+        qaBtn.addEventListener('click', () => {
+            if (!currentSelectedModel) {
+                alert('请先选择模型');
+                return;
+            }
+            toggleQaMode();
+        });
+
         // 初始化对话 - 检查是否已有对话，避免每次刷新都创建新对话
         const conversations = ConfigManager.getConversations();
         if (conversations.length > 0) {
@@ -1371,22 +1458,25 @@ ${pageContent}
         const promptDropdown = sidebar.querySelector('#prompt-dropdown');
 
         const renderPromptDropdown = () => {
-            const prompts = ConfigManager.getPrompts();
+            const allPrompts = ConfigManager.getPrompts();
+            const chatPrompts = allPrompts.map((p, i) => ({...p, originalIndex: i}))
+                                          .filter(p => p.type === 'chat' || !p.type);
+            
             promptDropdown.textContent = '';
 
-            if (prompts.length === 0) {
-                safeInnerHTML(promptDropdown, '<div class="prompt-dropdown-item" style="text-align:center;color:#999;">暂无提示词</div>');
+            if (chatPrompts.length === 0) {
+                safeInnerHTML(promptDropdown, '<div class="prompt-dropdown-item" style="text-align:center;color:#999;">暂无对话提示词</div>');
                 return;
             }
 
-            prompts.forEach((prompt, index) => {
+            chatPrompts.forEach((prompt) => {
                 const item = document.createElement('div');
                 item.className = 'prompt-dropdown-item';
                 safeInnerHTML(item, `
                     <div class="prompt-title">${prompt.title || '未命名'}</div>
                     <div class="prompt-preview">${prompt.content || ''}</div>
                 `);
-                item.dataset.index = index;
+                item.dataset.index = prompt.originalIndex;
                 promptDropdown.appendChild(item);
             });
         };
@@ -1457,11 +1547,46 @@ ${pageContent}
             const input = sidebar.querySelector('#user-input');
             const messages = sidebar.querySelector('#messages');
             
-            const text = options.text !== undefined ? options.text : input.value.trim();
-            const isSummary = options.isSummary || false;
-            const displayText = options.displayText || text;
+            let text = options.text !== undefined ? options.text : input.value.trim();
+            let isSummary = options.isSummary || false;
+            let displayText = options.displayText || text;
 
             if (!text) return;
+
+            if (isQaMode) {
+                const userQuestion = text;
+                const pageTitle = document.title;
+                let pageContent = '';
+                const mainContent = document.querySelector('main, article, .content, .main, #content, #main');
+                if (mainContent) {
+                    pageContent = mainContent.innerText;
+                } else {
+                    pageContent = document.body.innerText;
+                }
+                
+                const maxLength = 8000;
+                if (pageContent.length > maxLength) {
+                    pageContent = pageContent.substring(0, maxLength) + '...(内容过长已截断)';
+                }
+
+                text = `请根据以下网页内容，回答用户提出的问题。
+
+网页标题：${pageTitle}
+
+--- 网页内容开始 ---
+${pageContent}
+--- 网页内容结束 ---
+
+用户问题：${userQuestion}
+
+请开始回答：`;
+                
+                displayText = `问答页面 "${pageTitle}": ${userQuestion}`;
+                isSummary = true; // 复用isSummary来显示displayText
+
+                // 关闭问答模式
+                toggleQaMode(true);
+            }
             if (!currentSelectedModel) {
                 alert('请先选择模型');
                 return;
@@ -1932,8 +2057,11 @@ ${pageContent}
         // 提示词库功能
         const renderPrompts = () => {
             const prompts = ConfigManager.getPrompts();
-            const list = sidebar.querySelector('#prompts-list');
-            list.textContent = '';
+            const chatList = sidebar.querySelector('#chat-prompts-list');
+            const translateList = sidebar.querySelector('#translate-prompts-list');
+            
+            chatList.textContent = '';
+            translateList.textContent = '';
 
             prompts.forEach((prompt, index) => {
                 const item = document.createElement('div');
@@ -1951,19 +2079,26 @@ ${pageContent}
                     </div>
                     <div class="prompt-content" style="display:none;">${prompt.content || ''}</div>
                 `);
-                list.appendChild(item);
+                
+                if (prompt.type === 'translate') {
+                    translateList.appendChild(item);
+                } else {
+                    chatList.appendChild(item);
+                }
             });
         };
 
         sidebar.querySelector('#add-prompt').addEventListener('click', () => {
             const prompts = ConfigManager.getPrompts();
-            prompts.push({title: '', content: ''});
+            // Default to chat type
+            prompts.push({title: '', content: '', type: 'chat'});
             ConfigManager.savePrompts(prompts);
             renderPrompts();
-            const items = sidebar.querySelectorAll('.prompt-item');
-            const lastItem = items[items.length - 1];
-            if (lastItem) {
-                lastItem.querySelector('.edit-btn').click();
+            // Find the newly added item (last one)
+            const index = prompts.length - 1;
+            const item = sidebar.querySelector(`.prompt-item[data-index="${index}"]`);
+            if (item) {
+                item.querySelector('.edit-btn').click();
             }
         });
 
@@ -1982,7 +2117,7 @@ ${pageContent}
             renderPrompts();
         });
 
-        sidebar.querySelector('#prompts-list').addEventListener('click', (e) => {
+        const handlePromptListClick = (e) => {
             const index = parseInt(e.target.dataset.index);
             const item = sidebar.querySelector(`.prompt-item[data-index="${index}"]`);
 
@@ -1996,6 +2131,13 @@ ${pageContent}
                 safeInnerHTML(item, `
                     <div class="prompt-form">
                         <input type="text" placeholder="标题" value="${prompt.title || ''}" class="prompt-title-input">
+                        <div class="form-group" style="margin: 5px 0;">
+                            <label style="font-size: 12px; margin-right: 10px;">类型:</label>
+                            <select class="prompt-type-select" style="padding: 4px; border-radius: 4px; border: 1px solid #ddd;">
+                                <option value="chat" ${(!prompt.type || prompt.type === 'chat') ? 'selected' : ''}>对话提示词</option>
+                                <option value="translate" ${prompt.type === 'translate' ? 'selected' : ''}>翻译提示词</option>
+                            </select>
+                        </div>
                         <textarea placeholder="内容" class="prompt-content-input">${prompt.content || ''}</textarea>
                         <div class="form-actions">
                             <button class="save-prompt-btn" data-index="${index}">保存</button>
@@ -2013,16 +2155,21 @@ ${pageContent}
                 const prompts = ConfigManager.getPrompts();
                 const titleInput = item.querySelector('.prompt-title-input');
                 const contentInput = item.querySelector('.prompt-content-input');
+                const typeSelect = item.querySelector('.prompt-type-select');
+                
                 prompts[index] = {
                     title: titleInput.value.trim() || '未命名',
-                    content: contentInput.value.trim()
+                    content: contentInput.value.trim(),
+                    type: typeSelect.value
                 };
                 ConfigManager.savePrompts(prompts);
                 renderPrompts();
             } else if (e.target.classList.contains('cancel-btn')) {
                 renderPrompts();
             }
-        });
+        };
+
+        sidebar.querySelector('#prompts-container').addEventListener('click', handlePromptListClick);
 
         renderPrompts();
         
@@ -2054,6 +2201,8 @@ ${pageContent}
             promptSelect.innerHTML = '<option value="">未设置</option>';
             const prompts = ConfigManager.getPrompts();
             prompts.forEach((prompt, index) => {
+                if (prompt.type === 'translate') return; // Skip translate prompts for chat default
+                
                 const option = document.createElement('option');
                 option.value = index;
                 option.textContent = prompt.title || '未命名';
@@ -2065,8 +2214,9 @@ ${pageContent}
 
             // 填充翻译提示词选项
             translatePromptSelect.innerHTML = '<option value="">未设置</option>';
-            const translatePrompts = ConfigManager.getTranslatePrompts();
-            translatePrompts.forEach((prompt, index) => {
+            prompts.forEach((prompt, index) => {
+                if (prompt.type !== 'translate') return; // Only show translate prompts
+                
                 const option = document.createElement('option');
                 option.value = index;
                 option.textContent = prompt.title || '未命名';
@@ -2098,43 +2248,327 @@ ${pageContent}
                 if (tab.dataset.tab === 'system') {
                     renderSystemConfig();
                 } else if (tab.dataset.tab === 'translate') {
-                    renderTranslatePrompts();
+                    // 确保翻译页面能正确加载模型和提示词
+                    setTimeout(() => {
+                        renderTranslatePrompts();
+                        renderTranslateModels();
+                    }, 100);
                 }
             });
         });
 
         // 翻译功能
+        let currentTranslateModel = null;
+        let sourceLang = 'auto';
+        let targetLang = 'en';
+
+        const renderTranslateModels = () => {
+            const dropdown = sidebar.querySelector('#translate-model-dropdown');
+            const systemConfig = ConfigManager.getSystemConfig();
+            const providers = ConfigManager.getProviders();
+            const currentModelSpan = sidebar.querySelector('#current-translate-model');
+            
+            dropdown.innerHTML = '';
+            
+            let hasModels = false;
+            providers.forEach((provider, providerIndex) => {
+                const models = ConfigManager.getModels(providerIndex);
+                if (models.length > 0) hasModels = true;
+                models.forEach(model => {
+                    const item = document.createElement('div');
+                    item.className = 'translate-dropdown-item';
+                    const modelValue = JSON.stringify({provider: providerIndex, model: model});
+                    item.dataset.value = modelValue;
+                    item.textContent = `${provider.name} - ${model}`;
+                    
+                    if (currentTranslateModel === modelValue) {
+                        item.classList.add('selected');
+                        currentModelSpan.textContent = `${provider.name} - ${model}`;
+                    }
+                    
+                    dropdown.appendChild(item);
+                });
+            });
+
+            if (!hasModels) {
+                dropdown.innerHTML = '<div class="translate-dropdown-item">请先在AI提供商中添加模型</div>';
+                // 如果没有模型，重置当前翻译模型
+                currentTranslateModel = null;
+                if (currentModelSpan) currentModelSpan.textContent = '未选择模型';
+                return;
+            }
+
+            // 设置默认值
+            if (!currentTranslateModel && systemConfig.defaultModel) {
+                currentTranslateModel = systemConfig.defaultModel;
+                const config = JSON.parse(currentTranslateModel);
+                const provider = providers[config.provider];
+                if (provider) {
+                    currentModelSpan.textContent = `${provider.name} - ${config.model}`;
+                    // 重新渲染以高亮选中项
+                    renderTranslateModels();
+                }
+            }
+        };
+
         const renderTranslatePrompts = () => {
-            const prompts = ConfigManager.getTranslatePrompts();
-            const select = sidebar.querySelector('#translate-prompt-select');
-            select.innerHTML = '<option value="">默认</option>';
+            const systemConfig = ConfigManager.getSystemConfig();
+            const prompts = ConfigManager.getPrompts();
+            const dropdown = sidebar.querySelector('#translate-style-dropdown');
+            const currentStyleSpan = sidebar.querySelector('#current-translate-style');
+            
+            dropdown.innerHTML = '';
+            
+            // 默认选项
+            const defaultItem = document.createElement('div');
+            defaultItem.className = 'translate-dropdown-item';
+            defaultItem.dataset.value = "";
+            defaultItem.textContent = '默认 (通用翻译)';
+            if (currentTranslatePromptIndex === "") {
+                defaultItem.classList.add('selected');
+                currentStyleSpan.textContent = '默认 (通用翻译)';
+            }
+            dropdown.appendChild(defaultItem);
+
             prompts.forEach((prompt, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = prompt.title;
-                select.appendChild(option);
+                if (prompt.type !== 'translate') return; // Only show translate prompts
+
+                const item = document.createElement('div');
+                item.className = 'translate-dropdown-item';
+                item.dataset.value = index;
+                item.textContent = prompt.title || '未命名';
+                
+                if (currentTranslatePromptIndex === index.toString()) {
+                    item.classList.add('selected');
+                    currentStyleSpan.textContent = prompt.title || '未命名';
+                }
+                
+                dropdown.appendChild(item);
             });
         };
+
+        // 翻译设置下拉菜单事件
+        const translateModelBtn = sidebar.querySelector('#translate-model-btn');
+        const translateStyleBtn = sidebar.querySelector('#translate-style-btn');
+        const translateModelDropdown = sidebar.querySelector('#translate-model-dropdown');
+        const translateStyleDropdown = sidebar.querySelector('#translate-style-dropdown');
+
+        translateModelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = translateModelDropdown.style.display === 'block';
+            translateModelDropdown.style.display = isOpen ? 'none' : 'block';
+            translateStyleDropdown.style.display = 'none';
+        });
+
+        translateStyleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = translateStyleDropdown.style.display === 'block';
+            translateStyleDropdown.style.display = isOpen ? 'none' : 'block';
+            translateModelDropdown.style.display = 'none';
+        });
+
+        translateModelDropdown.addEventListener('click', (e) => {
+            const item = e.target.closest('.translate-dropdown-item');
+            if (!item || !item.dataset.value) return;
+
+            currentTranslateModel = item.dataset.value;
+            renderTranslateModels();
+            translateModelDropdown.style.display = 'none';
+        });
+
+        translateStyleDropdown.addEventListener('click', (e) => {
+            const item = e.target.closest('.translate-dropdown-item');
+            if (!item) return;
+
+            currentTranslatePromptIndex = item.dataset.value;
+            renderTranslatePrompts();
+            translateStyleDropdown.style.display = 'none';
+        });
+
+        // Language Selection Logic
+        const sourceLangBtn = sidebar.querySelector('#source-lang-btn');
+        const targetLangBtn = sidebar.querySelector('#target-lang-btn');
+        const swapLangBtn = sidebar.querySelector('#swap-lang-btn');
+        const sourceLangDropdown = sidebar.querySelector('#source-lang-dropdown');
+        const targetLangDropdown = sidebar.querySelector('#target-lang-dropdown');
+
+        const renderLanguageList = (container, type) => {
+            const listContainer = container.querySelector('.language-list');
+            listContainer.innerHTML = '';
+
+            LANGUAGES.forEach(lang => {
+                if (type !== 'source' && lang.isSourceOnly) return;
+
+                const item = document.createElement('div');
+                item.className = 'language-item';
+                const isSelected = type === 'source' ? sourceLang === lang.code : targetLang === lang.code;
+                if (isSelected) item.classList.add('selected');
+                item.textContent = lang.zh;
+                item.dataset.code = lang.code;
+                item.dataset.zh = lang.zh;
+                item.dataset.en = lang.en;
+                item.dataset.pinyin = lang.pinyin;
+                listContainer.appendChild(item);
+            });
+        };
+
+        const filterLanguages = (container, keyword) => {
+            const items = container.querySelectorAll('.language-item');
+            keyword = keyword.toLowerCase();
+            items.forEach(item => {
+                if (item.dataset.code === 'auto') return; // Always show auto
+                const zh = item.dataset.zh || '';
+                const en = item.dataset.en || '';
+                const pinyin = item.dataset.pinyin || '';
+                
+                if (zh.includes(keyword) || en.toLowerCase().includes(keyword) || pinyin.includes(keyword)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        };
+
+        const updateLanguageBtnText = (btn, code) => {
+            if (code === 'auto') {
+                btn.textContent = '自动检测';
+                return;
+            }
+            const lang = LANGUAGES.find(l => l.code === code);
+            if (lang) {
+                btn.textContent = lang.zh;
+            }
+        };
+
+        // Initialize Language Lists
+        renderLanguageList(sourceLangDropdown, 'source');
+        renderLanguageList(targetLangDropdown, 'target');
+
+        // Event Listeners for Language Selection
+        sourceLangBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = sourceLangDropdown.style.display === 'flex';
+            sourceLangDropdown.style.display = isOpen ? 'none' : 'flex';
+            targetLangDropdown.style.display = 'none';
+            if (!isOpen) {
+                sourceLangDropdown.querySelector('.language-search').focus();
+            }
+        });
+
+        targetLangBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = targetLangDropdown.style.display === 'flex';
+            targetLangDropdown.style.display = isOpen ? 'none' : 'flex';
+            sourceLangDropdown.style.display = 'none';
+            if (!isOpen) {
+                targetLangDropdown.querySelector('.language-search').focus();
+            }
+        });
+
+        swapLangBtn.addEventListener('click', () => {
+            if (sourceLang === 'auto') {
+                // Can't swap if source is auto, maybe alert or just set source to target
+                sourceLang = targetLang;
+                targetLang = 'en'; // Default fallback
+            } else {
+                const temp = sourceLang;
+                sourceLang = targetLang;
+                targetLang = temp;
+            }
+            updateLanguageBtnText(sourceLangBtn, sourceLang);
+            updateLanguageBtnText(targetLangBtn, targetLang);
+            
+            // Re-render lists to update selection state
+            renderLanguageList(sourceLangDropdown, 'source');
+            renderLanguageList(targetLangDropdown, 'target');
+        });
+
+        // Search Functionality
+        sidebar.querySelectorAll('.language-search').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const container = e.target.closest('.language-dropdown');
+                filterLanguages(container, e.target.value);
+            });
+            input.addEventListener('click', (e) => e.stopPropagation());
+        });
+
+        // Selection Event
+        const handleLanguageSelect = (e, type) => {
+            const item = e.target.closest('.language-item');
+            if (!item) return;
+
+            const code = item.dataset.code;
+            if (type === 'source') {
+                sourceLang = code;
+                updateLanguageBtnText(sourceLangBtn, code);
+                sourceLangDropdown.style.display = 'none';
+            } else {
+                targetLang = code;
+                updateLanguageBtnText(targetLangBtn, code);
+                targetLangDropdown.style.display = 'none';
+            }
+            
+            // Re-render to update selection styling
+            renderLanguageList(type === 'source' ? sourceLangDropdown : targetLangDropdown, type);
+        };
+
+        sourceLangDropdown.addEventListener('click', (e) => handleLanguageSelect(e, 'source'));
+        targetLangDropdown.addEventListener('click', (e) => handleLanguageSelect(e, 'target'));
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.translate-language-selector')) {
+                sourceLangDropdown.style.display = 'none';
+                targetLangDropdown.style.display = 'none';
+            }
+            if (!e.target.closest('.translate-card-title')) {
+                translateModelDropdown.style.display = 'none';
+                translateStyleDropdown.style.display = 'none';
+            }
+        });
 
         const translate = async () => {
             const input = sidebar.querySelector('#translate-input').value.trim();
             const output = sidebar.querySelector('#translate-output');
-            const promptSelect = sidebar.querySelector('#translate-prompt-select');
-            const selectedPromptIndex = promptSelect.value;
 
             if (!input) {
                 alert('请输入要翻译的内容');
                 return;
             }
-            if (!currentSelectedModel) {
+            if (!currentTranslateModel) {
                 alert('请先选择一个模型');
                 return;
             }
 
-            const prompts = ConfigManager.getTranslatePrompts();
-            let systemPrompt = 'Translate the following text. Be accurate and natural.';
-            if (selectedPromptIndex !== "" && prompts[selectedPromptIndex]) {
-                systemPrompt = prompts[selectedPromptIndex].content;
+            const prompts = ConfigManager.getPrompts();
+            
+            // Get language names for prompt
+            const getLangName = (code, type = 'zh') => {
+                if (code === 'auto') return type === 'zh' ? '自动检测' : 'Auto Detect';
+                const lang = LANGUAGES.find(l => l.code === code);
+                return lang ? (type === 'zh' ? lang.zh : lang.en) : code;
+            };
+
+            const sourceNameZh = getLangName(sourceLang, 'zh');
+            const targetNameZh = getLangName(targetLang, 'zh');
+            const sourceNameEn = getLangName(sourceLang, 'en');
+            const targetNameEn = getLangName(targetLang, 'en');
+
+            let systemPrompt = `You are a professional translator. Translate the following text from ${sourceNameEn} to ${targetNameEn}. Be accurate and natural.`;
+            
+            if (currentTranslatePromptIndex !== "" && prompts[currentTranslatePromptIndex]) {
+                let content = prompts[currentTranslatePromptIndex].content;
+                
+                // Variable substitution
+                content = content.replace(/{{原语言}}/g, sourceNameZh);
+                content = content.replace(/{{目标语言}}/g, targetNameZh);
+                content = content.replace(/{{输入内容}}/g, input);
+                
+                // Also support English variable names for compatibility
+                content = content.replace(/{{source_lang}}/g, sourceNameEn);
+                content = content.replace(/{{target_lang}}/g, targetNameEn);
+                content = content.replace(/{{input_text}}/g, input);
+
+                systemPrompt = content;
             }
 
             const messages = [
@@ -2142,12 +2576,12 @@ ${pageContent}
                 { role: 'user', content: input }
             ];
 
-            const config = JSON.parse(currentSelectedModel);
+            const config = JSON.parse(currentTranslateModel);
             const providers = ConfigManager.getProviders();
             const provider = providers[config.provider];
             const finalUrl = normalizeApiUrl(provider.url);
 
-            output.textContent = '翻译中...';
+            output.value = '翻译中...';
 
             try {
                 const response = await fetch(finalUrl, {
@@ -2169,19 +2603,87 @@ ${pageContent}
 
                 const data = await response.json();
                 if (data.choices && data.choices[0].message && data.choices[0].message.content) {
-                    output.textContent = data.choices[0].message.content;
+                    output.value = data.choices[0].message.content;
                 } else {
-                    output.textContent = '翻译失败，未收到有效回复。';
+                    output.value = '翻译失败，未收到有效回复。';
                 }
             } catch (error) {
                 console.error('Translation error:', error);
-                output.textContent = `翻译出错: ${error.message}`;
+                output.value = `翻译出错: ${error.message}`;
             }
+            // 更新输出字数
+            const outputCount = sidebar.querySelector('#output-count');
+            if (outputCount) outputCount.textContent = output.value.length;
         };
 
         sidebar.querySelector('#translate-btn').addEventListener('click', translate);
         
-        renderTranslatePrompts();
+        // 字数统计更新函数
+        const updateCharCount = (inputId, countId) => {
+            const input = sidebar.querySelector(inputId);
+            const count = sidebar.querySelector(countId);
+            if (input && count) {
+                count.textContent = input.value.length;
+            }
+        };
+
+        // 输入框事件监听
+        const translateInput = sidebar.querySelector('#translate-input');
+        if (translateInput) {
+            translateInput.addEventListener('input', () => {
+                updateCharCount('#translate-input', '#input-count');
+            });
+        }
+
+        // 清空按钮
+        sidebar.querySelector('#clear-translate-btn').addEventListener('click', () => {
+            sidebar.querySelector('#translate-input').value = '';
+            sidebar.querySelector('#translate-output').value = '';
+            updateCharCount('#translate-input', '#input-count');
+            const outputCount = sidebar.querySelector('#output-count');
+            if (outputCount) outputCount.textContent = '0';
+        });
+
+        // 复制输入按钮
+        const copyInputBtn = sidebar.querySelector('#copy-input-btn');
+        if (copyInputBtn) {
+            copyInputBtn.addEventListener('click', async () => {
+                const input = sidebar.querySelector('#translate-input');
+                if (!input.value) return;
+                
+                try {
+                    await navigator.clipboard.writeText(input.value);
+                    const originalText = copyInputBtn.textContent;
+                    copyInputBtn.textContent = '✓';
+                    setTimeout(() => copyInputBtn.textContent = originalText, 1000);
+                } catch (err) {
+                    console.error('复制失败', err);
+                }
+            });
+        }
+
+        // 复制输出按钮
+        sidebar.querySelector('#copy-translate-btn').addEventListener('click', async () => {
+            const output = sidebar.querySelector('#translate-output');
+            if (!output.value) return;
+            
+            try {
+                await navigator.clipboard.writeText(output.value);
+                const btn = sidebar.querySelector('#copy-translate-btn');
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                setTimeout(() => btn.textContent = originalText, 1000);
+            } catch (err) {
+                alert('复制失败');
+            }
+        });
+        
+        // 初始化翻译页面
+        setTimeout(() => {
+            renderTranslatePrompts();
+            renderTranslateModels();
+        }, 200);
+
     };
 
     if (document.readyState === 'loading') {

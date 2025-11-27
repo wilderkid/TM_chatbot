@@ -250,11 +250,18 @@ export const createSidebar = () => {
     summarizeBtn.title = '总结网页';
     summarizeBtn.textContent = '📄';
 
+    const qaBtn = document.createElement('button');
+    qaBtn.id = 'qa-page-btn';
+    qaBtn.className = 'prompt-icon-top';
+    qaBtn.title = '问答网页';
+    qaBtn.textContent = '❓';
+ 
     btnContainer.appendChild(newChatBtn);
     btnContainer.appendChild(promptBtn);
     btnContainer.appendChild(paramsBtn);
     btnContainer.appendChild(clearBtn);
     btnContainer.appendChild(summarizeBtn);
+    btnContainer.appendChild(qaBtn);
 
     const textarea = document.createElement('textarea');
     textarea.id = 'user-input';
@@ -327,6 +334,12 @@ export const createSidebar = () => {
     inputArea.appendChild(promptDropdown);
     inputArea.appendChild(paramsPanel);
 
+    const modeIndicator = document.createElement('div');
+    modeIndicator.id = 'mode-indicator';
+    modeIndicator.className = 'mode-indicator';
+    modeIndicator.style.display = 'none';
+    inputArea.appendChild(modeIndicator);
+ 
     chatMain.appendChild(modelSelector);
     chatMain.appendChild(messages);
     chatMain.appendChild(inputArea);
@@ -376,11 +389,36 @@ export const createSidebar = () => {
     batchDeleteBtn.textContent = '批量删除';
     promptsToolbar.appendChild(addPromptBtn);
     promptsToolbar.appendChild(batchDeleteBtn);
-    const promptsList = document.createElement('div');
-    promptsList.className = 'prompts-list';
-    promptsList.id = 'prompts-list';
+    const promptsContainer = document.createElement('div');
+    promptsContainer.className = 'prompts-list';
+    promptsContainer.id = 'prompts-container';
+
+    const chatHeader = document.createElement('h4');
+    chatHeader.textContent = '对话提示词';
+    chatHeader.style.margin = '0 0 10px 0';
+    chatHeader.style.color = 'var(--ai-text, #333)';
+    
+    const chatList = document.createElement('div');
+    chatList.id = 'chat-prompts-list';
+    
+    const translateHeader = document.createElement('h4');
+    translateHeader.innerHTML = `
+        翻译提示词
+        <span id="translate-prompt-help" class="help-icon" title="查看可用变量">?</span>
+    `;
+    translateHeader.style.margin = '20px 0 10px 0';
+    translateHeader.style.color = 'var(--ai-text, #333)';
+    
+    const translateList = document.createElement('div');
+    translateList.id = 'translate-prompts-list';
+
+    promptsContainer.appendChild(chatHeader);
+    promptsContainer.appendChild(chatList);
+    promptsContainer.appendChild(translateHeader);
+    promptsContainer.appendChild(translateList);
+
     promptsTab.appendChild(promptsToolbar);
-    promptsTab.appendChild(promptsList);
+    promptsTab.appendChild(promptsContainer);
 
     // 系统配置标签页
     const systemTab = document.createElement('div');
@@ -422,23 +460,93 @@ export const createSidebar = () => {
     const translateContainer = document.createElement('div');
     translateContainer.className = 'translate-container';
     translateContainer.innerHTML = `
-        <h3>AI 翻译</h3>
-        <div class="translate-main">
-            <div class="translate-input-area">
-                <textarea id="translate-input" placeholder="输入需要翻译的内容..."></textarea>
+        <div class="translate-card">
+            <div class="translate-card-title">
+                <span>⚙️ 翻译设置</span>
+                <div class="translate-text-area-actions">
+                    <div class="translate-action-btn" id="translate-model-btn" title="选择模型">
+                        <span>🤖</span>
+                    </div>
+                    <div class="translate-action-btn" id="translate-style-btn" title="选择风格">
+                        <span>🎨</span>
+                    </div>
+                </div>
             </div>
-            <div class="translate-output-area">
-                <div id="translate-output" class="translate-output"></div>
+            <div class="translate-current-settings">
+                <span id="current-translate-model">未选择模型</span>
+                <span class="separator">|</span>
+                <span id="current-translate-style">默认风格</span>
+            </div>
+            
+            <!-- Language Selection -->
+            <div class="translate-language-selector">
+                <div class="language-btn-container">
+                    <button id="source-lang-btn" class="language-btn" data-lang="auto">自动检测</button>
+                    <div id="source-lang-dropdown" class="language-dropdown" style="display: none;">
+                        <input type="text" class="language-search" placeholder="搜索语言 (中文/英文/拼音)...">
+                        <div class="language-list"></div>
+                    </div>
+                </div>
+                
+                <button id="swap-lang-btn" class="swap-btn" title="交换语言">⇄</button>
+                
+                <div class="language-btn-container">
+                    <button id="target-lang-btn" class="language-btn" data-lang="en">英语</button>
+                    <div id="target-lang-dropdown" class="language-dropdown" style="display: none;">
+                        <input type="text" class="language-search" placeholder="搜索语言 (中文/英文/拼音)...">
+                        <div class="language-list"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Hidden Dropdowns -->
+            <div id="translate-model-dropdown" class="translate-dropdown" style="display: none;">
+                <!-- Models will be populated here -->
+            </div>
+            <div id="translate-style-dropdown" class="translate-dropdown" style="display: none;">
+                <!-- Styles will be populated here -->
             </div>
         </div>
-        <div class="translate-controls">
-            <div class="form-group">
-                <label>翻译风格 (提示词)</label>
-                <select id="translate-prompt-select" class="config-select">
-                    <option value="">默认</option>
-                </select>
+
+        <div class="translate-card">
+            <div class="translate-card-title">
+                <span>⌨️ 输入文本</span>
+                <div class="translate-text-area-actions">
+                    <div class="translate-action-btn" id="clear-translate-btn" title="清除">
+                        <span>🗑️</span>
+                    </div>
+                    <div class="translate-action-btn" id="copy-input-btn" title="复制">
+                        <span>📋</span>
+                    </div>
+                </div>
             </div>
-            <button id="translate-btn" class="action-btn">翻译</button>
+            <div class="translate-text-area-container">
+                <textarea id="translate-input" placeholder="请输入要翻译的文本..."></textarea>
+            </div>
+            <div class="translate-char-count">
+                <span id="input-count">0</span>/5000
+            </div>
+        </div>
+
+        <button class="translate-main-btn" id="translate-btn">
+            <span>🌐 翻译文本</span>
+        </button>
+
+        <div class="translate-card">
+            <div class="translate-card-title">
+                <span>📄 翻译结果</span>
+                <div class="translate-text-area-actions">
+                    <div class="translate-action-btn" id="copy-translate-btn" title="复制">
+                        <span>📋</span>
+                    </div>
+                </div>
+            </div>
+            <div class="translate-text-area-container">
+                <textarea id="translate-output" placeholder="翻译结果将显示在这里..." readonly></textarea>
+            </div>
+            <div class="translate-char-count">
+                <span id="output-count">0</span> 字符
+            </div>
         </div>
     `;
     translateTab.appendChild(translateContainer);
@@ -451,6 +559,28 @@ export const createSidebar = () => {
     sidebar.appendChild(content);
 
     document.body.appendChild(sidebar);
+
+    // 添加提示词帮助弹窗
+    const helpModal = document.createElement('div');
+    helpModal.id = 'prompt-help-modal';
+    helpModal.className = 'prompt-help-modal';
+    helpModal.style.display = 'none';
+    helpModal.innerHTML = `
+        <div class="modal-content">
+            <span class="modal-close-btn">&times;</span>
+            <h3>翻译提示词可用变量</h3>
+            <p>您可以在翻译提示词中使用以下变量，系统会在翻译时自动替换它们：</p>
+            <ul>
+                <li><code>{{原语言}}</code> - 将被替换为当前设置的源语言名称（例如，“中文”）。</li>
+                <li><code>{{目标语言}}</code> - 将被替换为当前设置的目标语言名称（例如，“英语”）。</li>
+                <li><code>{{输入内容}}</code> - 将被替换为在翻译输入框中输入的完整文本。</li>
+            </ul>
+            <h4>示例：</h4>
+            <pre><code>请将以下内容从 {{原语言}} 翻译成 {{目标语言}}，请注意保持专业的语气：\n\n{{输入内容}}</code></pre>
+        </div>
+    `;
+    sidebar.appendChild(helpModal);
+
     return sidebar;
 };
 

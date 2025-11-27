@@ -643,7 +643,7 @@ export const addStyles = () => {
             transition: var(--ai-transition, all 0.2s ease);
         }
         .new-conv-btn {
-            background: #2ecc71;
+            background: #2da44e;
         }
         .batch-delete-conv-btn {
             background: #e74c3c;
@@ -1035,6 +1035,28 @@ export const addStyles = () => {
             padding: 15px;
             background: var(--ai-bg, white);
         }
+        .prompts-list h4 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .help-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--ai-textSecondary, #999);
+            color: var(--ai-bg, white);
+            text-align: center;
+            font-size: 12px;
+            line-height: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .help-icon:hover {
+            background: var(--ai-primary, #667eea);
+        }
         .prompt-item {
             background: var(--ai-bgSecondary, #f9f9f9);
             padding: 15px;
@@ -1187,6 +1209,352 @@ export const addStyles = () => {
         }
         #ai-chat-sidebar ::-webkit-scrollbar-thumb:hover {
             background: var(--ai-textSecondary, rgba(0, 0, 0, 0.2));
+        }
+
+        /* 翻译页面样式 */
+        .translate-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 16px;
+            background: var(--ai-bg, white);
+            gap: 16px;
+            overflow-y: auto;
+        }
+        .translate-card {
+            background: var(--ai-bgSecondary, #f9f9f9);
+            border: var(--ai-borderWidth, 1px) solid var(--ai-border, #ddd);
+            border-radius: var(--ai-borderRadius, 6px);
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+        .translate-card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--ai-text, #333);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .translate-card-title i {
+            color: var(--ai-primary, #667eea);
+        }
+        .translate-current-settings {
+            font-size: 12px;
+            color: var(--ai-textSecondary, #666);
+            margin-top: -8px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .translate-current-settings .separator {
+            color: var(--ai-border, #ddd);
+        }
+        .translate-dropdown {
+            position: absolute;
+            top: 45px;
+            right: 16px;
+            background: var(--ai-bg, white);
+            border: var(--ai-borderWidth, 1px) solid var(--ai-border, #ddd);
+            border-radius: var(--ai-borderRadius, 4px);
+            box-shadow: var(--ai-shadowLg, 0 2px 8px rgba(0,0,0,0.1));
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            min-width: 200px;
+        }
+        .translate-dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: var(--ai-borderWidth, 1px) solid var(--ai-border, #f0f0f0);
+            color: var(--ai-text, #333);
+            font-size: 13px;
+            transition: var(--ai-transition, all 0.2s ease);
+        }
+        .translate-dropdown-item:last-child {
+            border-bottom: none;
+        }
+        .translate-dropdown-item:hover {
+            background: var(--ai-hover, #f5f5f5);
+        }
+        .translate-dropdown-item.selected {
+            background: var(--ai-primary, #667eea);
+            color: white;
+        }
+        .translate-text-area-container {
+            position: relative;
+            margin-top: 8px;
+        }
+        .translate-text-area-container textarea {
+            width: 100%;
+            background: var(--ai-bg, white);
+            color: var(--ai-text, #333);
+            border: var(--ai-borderWidth, 1px) solid var(--ai-border, #ddd);
+            border-radius: var(--ai-borderRadius, 6px);
+            padding: 12px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 120px;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .translate-text-area-container textarea:focus {
+            border-color: var(--ai-primary, #667eea);
+        }
+        .translate-text-area-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .translate-action-btn {
+            background: var(--ai-bgSecondary, rgba(255,255,255,0.8));
+            border: var(--ai-borderWidth, 1px) solid var(--ai-border, #ddd);
+            border-radius: 4px;
+            color: var(--ai-textSecondary, #666);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .translate-action-btn:hover {
+            background: var(--ai-hover, #f5f5f5);
+            color: var(--ai-primary, #667eea);
+            border-color: var(--ai-primary, #667eea);
+        }
+        .translate-char-count {
+            font-size: 12px;
+            color: var(--ai-textSecondary, #999);
+            text-align: right;
+            margin-top: 4px;
+        }
+        .translate-main-btn {
+            background: var(--ai-primary, #667eea);
+            color: white;
+            border: none;
+            border-radius: var(--ai-borderRadius, 6px);
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .translate-main-btn:hover {
+            opacity: 0.9;
+        }
+        .translate-main-btn:active {
+            opacity: 1;
+        }
+        .translate-main-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        /* Language Selector Styles */
+        .translate-language-selector {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--ai-border, #eee);
+        }
+        .language-btn-container {
+            position: relative;
+            flex: 1;
+        }
+        .language-btn {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--ai-bg, white);
+            border: 1px solid var(--ai-border, #ddd);
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 13px;
+            color: var(--ai-text, #333);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+        .language-btn:hover {
+            border-color: var(--ai-primary, #667eea);
+            background: var(--ai-hover, #f5f5f5);
+        }
+        .language-btn::after {
+            content: '▼';
+            font-size: 10px;
+            opacity: 0.6;
+        }
+        .swap-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--ai-textSecondary, #666);
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            position: relative;
+            z-index: 102;
+        }
+        .swap-btn:hover {
+            background: var(--ai-hover, #f5f5f5);
+            color: var(--ai-primary, #667eea);
+            transform: rotate(180deg);
+        }
+        .language-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            max-height: 250px;
+            background: var(--ai-bg, white);
+            border: 1px solid var(--ai-border, #ddd);
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 101;
+            margin-top: 4px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        .language-search {
+            padding: 8px;
+            border: none;
+            border-bottom: 1px solid var(--ai-border, #eee);
+            width: 100%;
+            font-size: 12px;
+            outline: none;
+            background: var(--ai-bg, white);
+            color: var(--ai-text, #333);
+            box-sizing: border-box;
+        }
+        .language-list {
+            overflow-y: auto;
+            flex: 1;
+        }
+        .language-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--ai-text, #333);
+            transition: background 0.2s;
+        }
+        .language-item:hover {
+            background: var(--ai-hover, #f5f5f5);
+        }
+        .language-item.selected {
+            background: var(--ai-primary, #667eea);
+            color: white;
+        }
+
+        /* 提示词帮助弹窗样式 */
+        .prompt-help-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001; /* 比侧边栏内容高 */
+        }
+        .prompt-help-modal .modal-content {
+            background: var(--ai-bg, white);
+            padding: 25px;
+            border-radius: var(--ai-borderRadius, 8px);
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            color: var(--ai-text, #333);
+        }
+        .prompt-help-modal .modal-close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--ai-textSecondary, #999);
+        }
+        .prompt-help-modal .modal-close-btn:hover {
+            color: var(--ai-text, #333);
+        }
+        .prompt-help-modal h3 {
+            margin: 0 0 15px 0;
+            color: var(--ai-text, #333);
+        }
+        .prompt-help-modal p {
+            margin: 0 0 10px 0;
+            line-height: 1.6;
+        }
+        .prompt-help-modal ul {
+            margin: 0 0 15px 0;
+            padding-left: 20px;
+        }
+        .prompt-help-modal li {
+            margin-bottom: 8px;
+        }
+        .prompt-help-modal code {
+            background: var(--ai-hover, rgba(0,0,0,0.1));
+            padding: 2px 6px;
+            border-radius: var(--ai-btnRadius, 3px);
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+        .prompt-help-modal pre {
+            background: var(--ai-bgSecondary, #f5f5f5);
+            padding: 12px;
+            border-radius: var(--ai-borderRadius, 6px);
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+        .prompt-help-modal pre code {
+            background: none;
+            padding: 0;
+        }
+    `;
+    style.textContent += `
+        /* 模式指示器样式 */
+        .mode-indicator {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            z-index: 101;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none; /* 避免遮挡下方元素 */
+        }
+        .mode-indicator.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-5px);
         }
     `;
     document.head.appendChild(style);

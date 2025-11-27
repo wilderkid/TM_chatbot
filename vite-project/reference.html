@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI翻译工具</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            line-height: 1.5;
+            padding: 16px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #f0f6fc;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            color: #8b949e;
+            font-size: 14px;
+        }
+
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #f0f6fc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title i {
+            color: #58a6ff;
+        }
+
+        .select-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .select-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .select-container {
+            flex: 1;
+        }
+
+        select {
+            width: 100%;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus {
+            border-color: #58a6ff;
+        }
+
+        .text-area-container {
+            position: relative;
+            margin-top: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            background-color: #0d1117;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 120px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        textarea:focus {
+            border-color: #58a6ff;
+        }
+
+        .text-area-actions {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            background: rgba(22, 27, 34, 0.8);
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #c9d1d9;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #21262d;
+            border-color: #8b949e;
+        }
+
+        .translate-btn {
+            background-color: #238636;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .translate-btn:hover {
+            background-color: #2ea043;
+        }
+
+        .translate-btn:active {
+            background-color: #1f6f3a;
+        }
+
+        .divider {
+            height: 1px;
+            background-color: #30363d;
+            margin: 16px 0;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #8b949e;
+            margin-top: 16px;
+        }
+
+        .language-swap {
+            display: flex;
+            justify-content: center;
+            margin: 8px 0;
+        }
+
+        .swap-btn {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .swap-btn:hover {
+            background: #30363d;
+            border-color: #8b949e;
+        }
+
+        .char-count {
+            font-size: 12px;
+            color: #8b949e;
+            text-align: right;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI翻译工具</h1>
+            <p>快速、准确的AI翻译服务</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-cog"></i>
+                <span>翻译设置</span>
+            </div>
+            <div class="select-group">
+                <div class="select-container">
+                    <label for="model-select">翻译模型</label>
+                    <select id="model-select">
+                        <option value="gpt-4">GPT-4 翻译模型</option>
+                        <option value="gpt-3.5" selected>GPT-3.5 Turbo</option>
+                        <option value="claude">Claude 翻译模型</option>
+                        <option value="deepseek">DeepSeek 翻译模型</option>
+                    </select>
+                </div>
+                
+                <div class="select-row">
+                    <div class="select-container">
+                        <label for="source-lang">源语言</label>
+                        <select id="source-lang">
+                            <option value="auto">自动检测</option>
+                            <option value="zh" selected>中文</option>
+                            <option value="en">英语</option>
+                            <option value="ja">日语</option>
+                            <option value="ko">韩语</option>
+                            <option value="fr">法语</option>
+                            <option value="de">德语</option>
+                            <option value="es">西班牙语</option>
+                        </select>
+                    </div>
+                    
+                    <div class="language-swap">
+                        <div class="swap-btn" id="swap-languages">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="select-container">
+                        <label for="target-lang">目标语言</label>
+                        <select id="target-lang">
+                            <option value="zh">中文</option>
+                            <option value="en" selected>英语</option>
+                            <option value="ja">日语</option>
+                            <option value="ko">韩语</option>
+                            <option value="fr">法语</option>
+                            <option value="de">德语</option>
+                            <option value="es">西班牙语</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-keyboard"></i>
+                <span>输入文本</span>
+            </div>
+            <div class="text-area-container">
+                <textarea id="input-text" placeholder="请输入要翻译的文本...">AI翻译是一种利用人工智能技术将一种语言自动翻译成另一种语言的技术。它通过学习大量双语文本数据，理解语言之间的对应关系，从而实现快速、准确的翻译。</textarea>
+                <div class="text-area-actions">
+                    <div class="action-btn" id="clear-input" title="清除">
+                        <i class="fas fa-times"></i>
+                    </div>
+                    <div class="action-btn" id="copy-input" title="复制">
+                        <i class="far fa-copy"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="char-count">
+                <span id="input-count">0</span>/5000
+            </div>
+        </div>
+
+        <button class="translate-btn" id="translate-btn">
+            <i class="fas fa-language"></i>
+            <span>翻译文本</span>
+        </button>
+
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-file-alt"></i>
+                <span>翻译结果</span>
+            </div>
+            <div class="text-area-container">
+                <textarea id="output-text" placeholder="翻译结果将显示在这里..." readonly>AI translation is a technology that uses artificial intelligence to automatically translate one language into another. By learning from large amounts of bilingual text data, it understands the correspondence between languages, thereby achieving fast and accurate translation.</textarea>
+                <div class="text-area-actions">
+                    <div class="action-btn" id="copy-output" title="复制">
+                        <i class="far fa-copy"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="char-count">
+                <span id="output-count">0</span> 字符
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>AI翻译工具 &copy; 2023 | 基于先进的AI翻译模型</p>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const inputText = document.getElementById('input-text');
+        const outputText = document.getElementById('output-text');
+        const clearInputBtn = document.getElementById('clear-input');
+        const copyInputBtn = document.getElementById('copy-input');
+        const copyOutputBtn = document.getElementById('copy-output');
+        const translateBtn = document.getElementById('translate-btn');
+        const swapLanguagesBtn = document.getElementById('swap-languages');
+        const inputCount = document.getElementById('input-count');
+        const outputCount = document.getElementById('output-count');
+        const sourceLang = document.getElementById('source-lang');
+        const targetLang = document.getElementById('target-lang');
+
+        // 初始化字符计数
+        updateCharCount();
+
+        // 更新字符计数
+        function updateCharCount() {
+            inputCount.textContent = inputText.value.length;
+            outputCount.textContent = outputText.value.length;
+        }
+
+        // 清除输入框
+        clearInputBtn.addEventListener('click', () => {
+            inputText.value = '';
+            outputText.value = '';
+            updateCharCount();
+        });
+
+        // 复制输入文本
+        copyInputBtn.addEventListener('click', () => {
+            inputText.select();
+            document.execCommand('copy');
+            showCopyFeedback(copyInputBtn);
+        });
+
+        // 复制输出文本
+        copyOutputBtn.addEventListener('click', () => {
+            outputText.select();
+            document.execCommand('copy');
+            showCopyFeedback(copyOutputBtn);
+        });
+
+        // 显示复制反馈
+        function showCopyFeedback(button) {
+            const originalIcon = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            setTimeout(() => {
+                button.innerHTML = originalIcon;
+            }, 1000);
+        }
+
+        // 翻译按钮点击事件
+        translateBtn.addEventListener('click', () => {
+            // 模拟翻译过程
+            translateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>翻译中...</span>';
+            translateBtn.disabled = true;
+            
+            setTimeout(() => {
+                // 这里应该是实际的翻译API调用
+                // 现在只是模拟翻译结果
+                const input = inputText.value;
+                if (input.trim() === '') {
+                    outputText.value = '';
+                } else {
+                    // 模拟不同的翻译结果
+                    const source = sourceLang.value;
+                    const target = targetLang.value;
+                    
+                    if (source === 'zh' && target === 'en') {
+                        outputText.value = "AI translation is a technology that uses artificial intelligence to automatically translate one language into another. By learning from large amounts of bilingual text data, it understands the correspondence between languages, thereby achieving fast and accurate translation.";
+                    } else if (source === 'en' && target === 'zh') {
+                        outputText.value = "AI翻译是一种利用人工智能技术将一种语言自动翻译成另一种语言的技术。它通过学习大量双语文本数据，理解语言之间的对应关系，从而实现快速、准确的翻译。";
+                    } else {
+                        outputText.value = `[${source} -> ${target}] 翻译结果: ${input}`;
+                    }
+                }
+                
+                updateCharCount();
+                translateBtn.innerHTML = '<i class="fas fa-language"></i><span>翻译文本</span>';
+                translateBtn.disabled = false;
+            }, 1000);
+        });
+
+        // 交换语言
+        swapLanguagesBtn.addEventListener('click', () => {
+            const sourceValue = sourceLang.value;
+            const targetValue = targetLang.value;
+            
+            sourceLang.value = targetValue;
+            targetLang.value = sourceValue;
+            
+            // 交换输入和输出文本
+            const inputValue = inputText.value;
+            inputText.value = outputText.value;
+            outputText.value = inputValue;
+            
+            updateCharCount();
+        });
+
+        // 输入框内容变化时更新字符计数
+        inputText.addEventListener('input', updateCharCount);
+        
+        // 初始化字符计数
+        updateCharCount();
+    </script>
+</body>
+</html>

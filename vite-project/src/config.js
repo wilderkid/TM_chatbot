@@ -6,10 +6,35 @@ export const ConfigManager = {
     set: (key, value) => GM_setValue(key, value),
     getProviders: () => GM_getValue('ai_providers', []),
     saveProviders: (providers) => GM_setValue('ai_providers', providers),
-    getPrompts: () => GM_getValue('prompts', []),
+    getPrompts: () => {
+        let prompts = GM_getValue('prompts', []);
+        // Migration: Add type 'chat' to existing prompts if missing
+        let hasChanges = false;
+        prompts = prompts.map(p => {
+            if (!p.type) {
+                p.type = 'chat';
+                hasChanges = true;
+            }
+            return p;
+        });
+        
+        // Ensure default translation prompt exists if no translation prompts found
+        const hasTranslate = prompts.some(p => p.type === 'translate');
+        if (!hasTranslate) {
+            prompts.push({
+                title: '通用翻译',
+                content: 'Translate the following text. Be accurate and natural.',
+                type: 'translate'
+            });
+            hasChanges = true;
+        }
+
+        if (hasChanges) {
+            GM_setValue('prompts', prompts);
+        }
+        return prompts;
+    },
     savePrompts: (prompts) => GM_setValue('prompts', prompts),
-    getTranslatePrompts: () => GM_getValue('translate_prompts', [{ title: '通用翻译', content: 'Translate the following text. Be accurate and natural.' }]),
-    saveTranslatePrompts: (prompts) => GM_setValue('translate_prompts', prompts),
     getModels: (providerIndex) => GM_getValue(`models_${providerIndex}`, []),
     saveModels: (providerIndex, models) => GM_setValue(`models_${providerIndex}`, models),
     getAvailableModels: (providerIndex) => GM_getValue(`available_models_${providerIndex}`, []),
@@ -21,7 +46,11 @@ export const ConfigManager = {
     getSystemConfig: () => GM_getValue('system_config', {defaultModel: null, defaultPrompt: null, defaultTranslatePrompt: null}),
     saveSystemConfig: (config) => GM_setValue('system_config', config),
     getTriggerPosition: () => GM_getValue('trigger_position', null),
-    saveTriggerPosition: (pos) => GM_setValue('trigger_position', pos)
+    saveTriggerPosition: (pos) => GM_setValue('trigger_position', pos),
+    getSidebarOpen: () => GM_getValue('sidebar_open', false),
+    saveSidebarOpen: (isOpen) => GM_setValue('sidebar_open', isOpen),
+    getSidebarStyle: () => GM_getValue('sidebar_style', null),
+    saveSidebarStyle: (style) => GM_setValue('sidebar_style', style)
 };
 
 export const THEMES = {
@@ -119,7 +148,7 @@ export const THEMES = {
         name: 'GitHub风格',
         colors: {
             primary: '#2da44e',
-            primaryGradient: '#24292f',
+            primaryGradient: '#2da44e',
             bg: '#ffffff',
             bgSecondary: '#f6f8fa',
             text: '#24292f',
