@@ -12,13 +12,26 @@ import 'highlight.js/styles/github-dark.css';
 
     // 初始化
     const init = () => {
+        console.log('[TM Debug] 开始初始化');
         addStyles();
+        console.log('[TM Debug] 样式已添加');
+        
         const triggerBtn = createTriggerButton();
+        console.log('[TM Debug] 触发按钮已创建:', triggerBtn);
+        
         const sidebar = createSidebar();
+        console.log('[TM Debug] 侧边栏已创建:', sidebar);
+        
+        // 将元素添加到页面
+        document.body.appendChild(triggerBtn);
+        console.log('[TM Debug] 触发按钮已添加到DOM');
+        
+        document.body.appendChild(sidebar);
+        console.log('[TM Debug] 侧边栏已添加到DOM');
 
         // 恢复侧边栏状态和样式
         if (ConfigManager.getSidebarOpen()) {
-            sidebar.classList.add('open');
+            sidebar.classList.add('tm-open');
         }
         const savedStyle = ConfigManager.getSidebarStyle();
         if (savedStyle) {
@@ -81,42 +94,47 @@ import 'highlight.js/styles/github-dark.css';
 
         // 切换侧边栏
         triggerBtn.addEventListener('click', (e) => {
+            console.log('[TM Debug] 触发按钮被点击');
             if (triggerHasMoved) {
+                console.log('[TM Debug] 按钮被拖动过，忽略点击');
                 e.preventDefault();
                 e.stopPropagation();
                 triggerHasMoved = false;
                 return;
             }
-            sidebar.classList.toggle('open');
-            ConfigManager.saveSidebarOpen(sidebar.classList.contains('open'));
+            console.log('[TM Debug] 切换侧边栏状态');
+            sidebar.classList.toggle('tm-open');
+            const isOpen = sidebar.classList.contains('tm-open');
+            console.log('[TM Debug] 侧边栏现在是:', isOpen ? '打开' : '关闭');
+            ConfigManager.saveSidebarOpen(isOpen);
         });
 
-        sidebar.querySelector('.close-btn').addEventListener('click', () => {
-            sidebar.classList.remove('open');
+        sidebar.querySelector('.tm-close-btn').addEventListener('click', () => {
+            sidebar.classList.remove('tm-open');
             ConfigManager.saveSidebarOpen(false);
         });
 
         // 主题切换
-        const themeBtn = sidebar.querySelector('.theme-btn');
-        const themeDropdown = sidebar.querySelector('.theme-dropdown');
+        const themeBtn = sidebar.querySelector('.tm-theme-btn');
+        const themeDropdown = sidebar.querySelector('.tm-theme-dropdown');
         
         themeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            themeDropdown.classList.toggle('show');
+            themeDropdown.classList.toggle('tm-show');
         });
         
         themeDropdown.addEventListener('click', (e) => {
-            const item = e.target.closest('.theme-item');
+            const item = e.target.closest('.tm-theme-item');
             if (!item) return;
             
             const themeName = item.dataset.theme;
             applyTheme(themeName);
-            themeDropdown.classList.remove('show');
+            themeDropdown.classList.remove('tm-show');
         });
         
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.header-controls')) {
-                themeDropdown.classList.remove('show');
+            if (!e.target.closest('.tm-header-controls')) {
+                themeDropdown.classList.remove('tm-show');
             }
         });
 
@@ -143,19 +161,19 @@ import 'highlight.js/styles/github-dark.css';
             startHeight = rect.height;
             startLeft = rect.left;
             startTop = rect.top;
-            sidebar.classList.add('resizing');
+            sidebar.classList.add('tm-resizing');
             e.preventDefault();
             e.stopPropagation();
         };
 
-        sidebar.querySelector('.resize-handle-left').addEventListener('mousedown', (e) => startResize(e, 'left'));
-        sidebar.querySelector('.resize-handle-right').addEventListener('mousedown', (e) => startResize(e, 'right'));
-        sidebar.querySelector('.resize-handle-top').addEventListener('mousedown', (e) => startResize(e, 'top'));
-        sidebar.querySelector('.resize-handle-bottom').addEventListener('mousedown', (e) => startResize(e, 'bottom'));
-        sidebar.querySelector('.resize-handle-corner-tl').addEventListener('mousedown', (e) => startResize(e, 'top-left'));
-        sidebar.querySelector('.resize-handle-corner-tr').addEventListener('mousedown', (e) => startResize(e, 'top-right'));
-        sidebar.querySelector('.resize-handle-corner-bl').addEventListener('mousedown', (e) => startResize(e, 'bottom-left'));
-        sidebar.querySelector('.resize-handle-corner-br').addEventListener('mousedown', (e) => startResize(e, 'bottom-right'));
+        sidebar.querySelector('.tm-resize-handle-left').addEventListener('mousedown', (e) => startResize(e, 'left'));
+        sidebar.querySelector('.tm-resize-handle-right').addEventListener('mousedown', (e) => startResize(e, 'right'));
+        sidebar.querySelector('.tm-resize-handle-top').addEventListener('mousedown', (e) => startResize(e, 'top'));
+        sidebar.querySelector('.tm-resize-handle-bottom').addEventListener('mousedown', (e) => startResize(e, 'bottom'));
+        sidebar.querySelector('.tm-resize-handle-corner-tl').addEventListener('mousedown', (e) => startResize(e, 'top-left'));
+        sidebar.querySelector('.tm-resize-handle-corner-tr').addEventListener('mousedown', (e) => startResize(e, 'top-right'));
+        sidebar.querySelector('.tm-resize-handle-corner-bl').addEventListener('mousedown', (e) => startResize(e, 'bottom-left'));
+        sidebar.querySelector('.tm-resize-handle-corner-br').addEventListener('mousedown', (e) => startResize(e, 'bottom-right'));
 
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
@@ -192,7 +210,7 @@ import 'highlight.js/styles/github-dark.css';
 
 
         // 拖拽移动窗口
-        const header = sidebar.querySelector('.sidebar-header');
+        const header = sidebar.querySelector('.tm-sidebar-header');
         let isDragging = false;
         let dragStartX = 0;
         let dragStartY = 0;
@@ -208,7 +226,7 @@ import 'highlight.js/styles/github-dark.css';
             const rect = sidebar.getBoundingClientRect();
             sidebarLeft = rect.left;
             sidebarTop = rect.top;
-            sidebar.classList.add('dragging');
+            sidebar.classList.add('tm-dragging');
             e.preventDefault();
         });
 
@@ -226,7 +244,7 @@ import 'highlight.js/styles/github-dark.css';
             if (isResizing) {
                 isResizing = false;
                 resizeType = '';
-                sidebar.classList.remove('resizing');
+                sidebar.classList.remove('tm-resizing');
                 
                 // 保存调整后的大小和位置
                 ConfigManager.saveSidebarStyle({
@@ -238,7 +256,7 @@ import 'highlight.js/styles/github-dark.css';
             }
             if (isDragging) {
                 isDragging = false;
-                sidebar.classList.remove('dragging');
+                sidebar.classList.remove('tm-dragging');
                 
                 // 保存拖动后的位置
                 ConfigManager.saveSidebarStyle({
@@ -251,20 +269,20 @@ import 'highlight.js/styles/github-dark.css';
         });
 
         // 选项卡切换
-        sidebar.querySelectorAll('.tab').forEach(tab => {
+        sidebar.querySelectorAll('.tm-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.dataset.tab;
-                sidebar.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                sidebar.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                tab.classList.add('active');
-                sidebar.querySelector(`#${tabName}-tab`).classList.add('active');
+                sidebar.querySelectorAll('.tm-tab').forEach(t => t.classList.remove('tm-active'));
+                sidebar.querySelectorAll('.tm-tab-content').forEach(c => c.classList.remove('tm-active'));
+                tab.classList.add('tm-active');
+                sidebar.querySelector(`#tm-${tabName}-tab`).classList.add('tm-active');
             });
         });
 
         // 提示词帮助弹窗逻辑
-        const helpIcon = sidebar.querySelector('#translate-prompt-help');
-        const helpModal = sidebar.querySelector('#prompt-help-modal');
-        const closeModalBtn = helpModal.querySelector('.modal-close-btn');
+        const helpIcon = sidebar.querySelector('#tm-translate-prompt-help');
+        const helpModal = sidebar.querySelector('#tm-prompt-help-modal');
+        const closeModalBtn = helpModal.querySelector('.tm-modal-close-btn');
 
         helpIcon.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -286,18 +304,18 @@ import 'highlight.js/styles/github-dark.css';
 
         const renderProvidersSidebar = () => {
             const providers = ConfigManager.getProviders();
-            const list = sidebar.querySelector('#providers-sidebar-list');
+            const list = sidebar.querySelector('#tm-providers-sidebar-list');
             list.textContent = '';
 
             providers.forEach((provider, index) => {
                 const item = document.createElement('div');
-                item.className = 'provider-sidebar-item';
+                item.className = 'tm-provider-sidebar-item';
                 if (index === currentProviderIndex) {
-                    item.classList.add('active');
+                    item.classList.add('tm-active');
                 }
                 safeInnerHTML(item, `
-                    <span class="provider-name">${provider.name || '未命名供应商'}</span>
-                    <span class="delete-icon" data-index="${index}">×</span>
+                    <span class="tm-provider-name">${provider.name || '未命名供应商'}</span>
+                    <span class="tm-delete-icon" data-index="${index}">×</span>
                 `);
                 item.dataset.index = index;
                 list.appendChild(item);
@@ -360,43 +378,43 @@ import 'highlight.js/styles/github-dark.css';
         const renderProviderDetail = (index) => {
             const providers = ConfigManager.getProviders();
             const provider = providers[index];
-            const detail = sidebar.querySelector('#provider-detail');
+            const detail = sidebar.querySelector('#tm-provider-detail');
             const models = ConfigManager.getModels(index);
 
             safeInnerHTML(detail, `
-                <div class="provider-form">
+                <div class="tm-provider-form">
                     <h3>供应商信息</h3>
-                    <div class="form-group">
+                    <div class="tm-form-group">
                         <label>供应商名称</label>
                         <input type="text" value="${provider.name || ''}" id="provider-name-${index}">
                     </div>
-                    <div class="form-group">
+                    <div class="tm-form-group">
                         <label>API URL</label>
                         <input type="text" value="${provider.url || ''}" id="provider-url-${index}" placeholder="例如: https://api.openai.com">
                     </div>
-                    <div class="final-url-display" id="final-url-${index}"></div>
-                    <div class="form-group password-group">
+                    <div class="tm-final-url-display" id="final-url-${index}"></div>
+                    <div class="tm-form-group tm-password-group">
                         <label>API Key</label>
                         <input type="password" value="${provider.key || ''}" id="provider-key-${index}">
-                        <span class="toggle-password" data-target="provider-key-${index}">👁️</span>
+                        <span class="tm-toggle-password" data-target="provider-key-${index}">👁️</span>
                     </div>
-                    <div class="form-actions">
-                        <button class="save-provider-btn" data-index="${index}">保存</button>
+                    <div class="tm-form-actions">
+                        <button class="tm-save-provider-btn" data-index="${index}">保存</button>
                     </div>
 
-                    <div class="models-section">
+                    <div class="tm-models-section">
                         <h3>
                             已添加模型
-                            <button class="fetch-models-btn" data-index="${index}">获取模型列表</button>
-                            <button class="refresh-models-btn" data-index="${index}" style="display:none;">刷新</button>
+                            <button class="tm-fetch-models-btn" data-index="${index}">获取模型列表</button>
+                            <button class="tm-refresh-models-btn" data-index="${index}" style="display:none;">刷新</button>
                         </h3>
-                        <div class="models-list" id="models-list-${index}"></div>
-                        <button class="add-model-btn" data-index="${index}">+ 手动添加模型</button>
+                        <div class="tm-models-list" id="models-list-${index}"></div>
+                        <button class="tm-add-model-btn" data-index="${index}">+ 手动添加模型</button>
 
-                        <div class="available-models-section" id="available-models-${index}" style="display:none;">
+                        <div class="tm-available-models-section" id="available-models-${index}" style="display:none;">
                             <h4>可用模型列表</h4>
-                            <input type="text" class="model-search" placeholder="搜索模型..." id="model-search-${index}">
-                            <div class="available-models-list" id="available-models-list-${index}"></div>
+                            <input type="text" class="tm-model-search" placeholder="搜索模型..." id="model-search-${index}">
+                            <div class="tm-available-models-list" id="available-models-list-${index}"></div>
                         </div>
                     </div>
                 </div>
@@ -405,11 +423,11 @@ import 'highlight.js/styles/github-dark.css';
             const modelsList = detail.querySelector(`#models-list-${index}`);
             models.forEach((model, modelIndex) => {
                 const item = document.createElement('div');
-                item.className = 'model-item';
+                item.className = 'tm-model-item';
                 safeInnerHTML(item, `
                     <input type="text" value="${model}" data-model="${modelIndex}">
-                    <button class="save-model-btn" data-provider="${index}" data-model="${modelIndex}">保存</button>
-                    <button class="delete-model-btn" data-provider="${index}" data-model="${modelIndex}">删除</button>
+                    <button class="tm-save-model-btn" data-provider="${index}" data-model="${modelIndex}">保存</button>
+                    <button class="tm-delete-model-btn" data-provider="${index}" data-model="${modelIndex}">删除</button>
                 `);
                 modelsList.appendChild(item);
             });
@@ -439,8 +457,8 @@ import 'highlight.js/styles/github-dark.css';
             const availableModels = ConfigManager.getAvailableModels(index);
             if (availableModels.length > 0) {
                 const availableSection = document.querySelector(`#available-models-${index}`);
-                const fetchBtn = document.querySelector(`.fetch-models-btn[data-index="${index}"]`);
-                const refreshBtn = document.querySelector(`.refresh-models-btn[data-index="${index}"]`);
+                const fetchBtn = document.querySelector(`.tm-fetch-models-btn[data-index="${index}"]`);
+                const refreshBtn = document.querySelector(`.tm-refresh-models-btn[data-index="${index}"]`);
 
                 if (availableSection) availableSection.style.display = 'block';
                 if (fetchBtn) fetchBtn.style.display = 'none';
@@ -461,10 +479,10 @@ import 'highlight.js/styles/github-dark.css';
 
             const availableSection = sidebar.querySelector(`#available-models-${index}`);
             const availableList = sidebar.querySelector(`#available-models-list-${index}`);
-            const fetchBtn = sidebar.querySelector(`.fetch-models-btn[data-index="${index}"]`);
-            const refreshBtn = sidebar.querySelector(`.refresh-models-btn[data-index="${index}"]`);
+            const fetchBtn = sidebar.querySelector(`.tm-fetch-models-btn[data-index="${index}"]`);
+            const refreshBtn = sidebar.querySelector(`.tm-refresh-models-btn[data-index="${index}"]`);
 
-            safeInnerHTML(availableList, '<div class="loading-models">正在获取模型列表...</div>');
+            safeInnerHTML(availableList, '<div class="tm-loading-models">正在获取模型列表...</div>');
             availableSection.style.display = 'block';
 
             const modelsUrl = getModelsUrl(provider.url);
@@ -487,11 +505,11 @@ import 'highlight.js/styles/github-dark.css';
                         fetchBtn.style.display = 'none';
                         refreshBtn.style.display = 'inline-block';
                     } catch (e) {
-                        safeInnerHTML(availableList, '<div class="loading-models">获取失败: ' + e.message + '</div>');
+                        safeInnerHTML(availableList, '<div class="tm-loading-models">获取失败: ' + e.message + '</div>');
                     }
                 },
                 onerror: () => {
-                    safeInnerHTML(availableList, '<div class="loading-models">请求失败，请检查URL和API Key</div>');
+                    safeInnerHTML(availableList, '<div class="tm-loading-models">请求失败，请检查URL和API Key</div>');
                 }
             });
         };
@@ -503,11 +521,11 @@ import 'highlight.js/styles/github-dark.css';
             availableList.textContent = '';
             models.forEach(modelName => {
                 const item = document.createElement('div');
-                item.className = 'available-model-item';
+                item.className = 'tm-available-model-item';
                 item.dataset.modelName = modelName;
                 safeInnerHTML(item, `
-                    <span class="model-name">${modelName}</span>
-                    <span class="add-model-icon" data-provider="${index}" data-model-name="${modelName}">+</span>
+                    <span class="tm-model-name">${modelName}</span>
+                    <span class="tm-add-model-icon" data-provider="${index}" data-model-name="${modelName}">+</span>
                 `);
                 availableList.appendChild(item);
             });
@@ -523,7 +541,7 @@ import 'highlight.js/styles/github-dark.css';
             // 保持兼容性，但不再使用
         };
 
-        sidebar.querySelector('#add-provider-btn').addEventListener('click', () => {
+        sidebar.querySelector('#tm-add-provider-btn').addEventListener('click', () => {
             const providers = ConfigManager.getProviders();
             providers.push({name: '新供应商', url: '', key: ''});
             ConfigManager.saveProviders(providers);
@@ -532,8 +550,8 @@ import 'highlight.js/styles/github-dark.css';
             renderProviderDetail(currentProviderIndex);
         });
 
-        sidebar.querySelector('#providers-sidebar-list').addEventListener('click', (e) => {
-            if (e.target.classList.contains('delete-icon')) {
+        sidebar.querySelector('#tm-providers-sidebar-list').addEventListener('click', (e) => {
+            if (e.target.classList.contains('tm-delete-icon')) {
                 e.stopPropagation();
                 const index = parseInt(e.target.dataset.index);
                 if (!confirm('确定删除此供应商吗？')) return;
@@ -544,7 +562,7 @@ import 'highlight.js/styles/github-dark.css';
 
                 if (currentProviderIndex === index) {
                     currentProviderIndex = null;
-                    safeInnerHTML(sidebar.querySelector('#provider-detail'), '<div class="empty-state">请选择或添加一个供应商</div>');
+                    safeInnerHTML(sidebar.querySelector('#tm-provider-detail'), '<div class="tm-empty-state">请选择或添加一个供应商</div>');
                 } else if (currentProviderIndex > index) {
                     currentProviderIndex--;
                 }
@@ -553,7 +571,7 @@ import 'highlight.js/styles/github-dark.css';
                 return;
             }
 
-            const item = e.target.closest('.provider-sidebar-item');
+            const item = e.target.closest('.tm-provider-sidebar-item');
             if (!item) return;
 
             currentProviderIndex = parseInt(item.dataset.index);
@@ -561,8 +579,8 @@ import 'highlight.js/styles/github-dark.css';
             renderProviderDetail(currentProviderIndex);
         });
 
-        sidebar.querySelector('#provider-detail').addEventListener('click', (e) => {
-            if (e.target.classList.contains('toggle-password')) {
+        sidebar.querySelector('#tm-provider-detail').addEventListener('click', (e) => {
+            if (e.target.classList.contains('tm-toggle-password')) {
                 const targetId = e.target.dataset.target;
                 const input = sidebar.querySelector(`#${targetId}`);
                 if (input.type === 'password') {
@@ -572,7 +590,7 @@ import 'highlight.js/styles/github-dark.css';
                     input.type = 'password';
                     e.target.textContent = '👁️';
                 }
-            } else if (e.target.classList.contains('save-provider-btn')) {
+            } else if (e.target.classList.contains('tm-save-provider-btn')) {
                 const index = parseInt(e.target.dataset.index);
                 const providers = ConfigManager.getProviders();
 
@@ -586,13 +604,13 @@ import 'highlight.js/styles/github-dark.css';
                 renderProvidersSidebar();
                 updateModelSelect();
                 alert('保存成功');
-            } else if (e.target.classList.contains('fetch-models-btn')) {
+            } else if (e.target.classList.contains('tm-fetch-models-btn')) {
                 const providerIndex = parseInt(e.target.dataset.index);
                 fetchAvailableModels(providerIndex);
-            } else if (e.target.classList.contains('refresh-models-btn')) {
+            } else if (e.target.classList.contains('tm-refresh-models-btn')) {
                 const providerIndex = parseInt(e.target.dataset.index);
                 fetchAvailableModels(providerIndex);
-            } else if (e.target.classList.contains('add-model-icon')) {
+            } else if (e.target.classList.contains('tm-add-model-icon')) {
                 const providerIndex = parseInt(e.target.dataset.provider);
                 const modelName = e.target.dataset.modelName;
                 const models = ConfigManager.getModels(providerIndex);
@@ -615,22 +633,22 @@ import 'highlight.js/styles/github-dark.css';
                 } else {
                     alert('该模型已存在');
                 }
-            } else if (e.target.classList.contains('add-model-btn')) {
+            } else if (e.target.classList.contains('tm-add-model-btn')) {
                 const providerIndex = parseInt(e.target.dataset.index);
                 const models = ConfigManager.getModels(providerIndex);
                 models.push('');
                 ConfigManager.saveModels(providerIndex, models);
                 renderProviderDetail(providerIndex);
-            } else if (e.target.classList.contains('save-model-btn')) {
+            } else if (e.target.classList.contains('tm-save-model-btn')) {
                 const providerIndex = parseInt(e.target.dataset.provider);
                 const modelIndex = parseInt(e.target.dataset.model);
-                const input = e.target.closest('.model-item').querySelector('input');
+                const input = e.target.closest('.tm-model-item').querySelector('input');
                 const models = ConfigManager.getModels(providerIndex);
                 models[modelIndex] = input.value.trim();
                 ConfigManager.saveModels(providerIndex, models);
                 updateModelSelect();
                 alert('模型保存成功');
-            } else if (e.target.classList.contains('delete-model-btn')) {
+            } else if (e.target.classList.contains('tm-delete-model-btn')) {
                 const providerIndex = parseInt(e.target.dataset.provider);
                 const modelIndex = parseInt(e.target.dataset.model);
                 if (!confirm('确定删除此模型吗？')) return;
@@ -646,13 +664,13 @@ import 'highlight.js/styles/github-dark.css';
         renderProvidersSidebar();
 
         // 模型选择下拉菜单
-        const modelDisplayBtn = sidebar.querySelector('#model-display-btn');
-        const modelDropdown = sidebar.querySelector('#model-dropdown');
-        const modelNameSpan = sidebar.querySelector('#model-name');
+        const modelDisplayBtn = sidebar.querySelector('#tm-model-display-btn');
+        const modelDropdown = sidebar.querySelector('#tm-model-dropdown');
+        const modelNameSpan = sidebar.querySelector('#tm-model-name');
         let currentSelectedModel = null;
         let currentSystemPrompt = '';
         let currentTranslatePromptIndex = "";
-        const promptSelectorBtn = sidebar.querySelector('#prompt-selector-btn');
+        const promptSelectorBtn = sidebar.querySelector('#tm-prompt-selector-btn');
         let isQaMode = false;
 
         const applySystemDefaults = () => {
@@ -671,12 +689,12 @@ import 'highlight.js/styles/github-dark.css';
                 const prompt = prompts[systemConfig.defaultPrompt];
                 if (prompt) {
                     currentSystemPrompt = prompt.content;
-                    promptSelectorBtn.classList.add('selected');
+                    promptSelectorBtn.classList.add('tm-selected');
                     promptSelectorBtn.title = `已选择: ${prompt.title}`;
                 }
             } else {
                  currentSystemPrompt = '';
-                 promptSelectorBtn.classList.remove('selected');
+                 promptSelectorBtn.classList.remove('tm-selected');
                  promptSelectorBtn.title = '选择提示词';
             }
             if (systemConfig.defaultTranslatePrompt !== null && systemConfig.defaultTranslatePrompt !== "") {
@@ -698,10 +716,10 @@ import 'highlight.js/styles/github-dark.css';
                 const models = ConfigManager.getModels(providerIndex);
                 models.forEach(model => {
                     const item = document.createElement('div');
-                    item.className = 'model-dropdown-item';
+                    item.className = 'tm-model-dropdown-item';
                     const modelValue = JSON.stringify({provider: providerIndex, model: model});
                     if (currentSelectedModel === modelValue) {
-                        item.classList.add('selected');
+                        item.classList.add('tm-selected');
                     }
                     item.textContent = `${provider.name} - ${model}`;
                     item.dataset.value = modelValue;
@@ -714,12 +732,12 @@ import 'highlight.js/styles/github-dark.css';
             e.stopPropagation();
             const isOpen = modelDropdown.style.display === 'block';
             modelDropdown.style.display = isOpen ? 'none' : 'block';
-            modelDisplayBtn.classList.toggle('open', !isOpen);
+            modelDisplayBtn.classList.toggle('tm-open', !isOpen);
             if (!isOpen) renderModelDropdown();
         });
 
         modelDropdown.addEventListener('click', (e) => {
-            const item = e.target.closest('.model-dropdown-item');
+            const item = e.target.closest('.tm-model-dropdown-item');
             if (!item) return;
 
             currentSelectedModel = item.dataset.value;
@@ -728,12 +746,12 @@ import 'highlight.js/styles/github-dark.css';
             const provider = providers[config.provider];
             modelNameSpan.textContent = `${provider.name} - ${config.model}`;
             modelDropdown.style.display = 'none';
-            modelDisplayBtn.classList.remove('open');
+            modelDisplayBtn.classList.remove('tm-open');
         });
 
         document.addEventListener('click', () => {
             modelDropdown.style.display = 'none';
-            modelDisplayBtn.classList.remove('open');
+            modelDisplayBtn.classList.remove('tm-open');
         });
 
         // 历史对话管理
@@ -742,22 +760,22 @@ import 'highlight.js/styles/github-dark.css';
 
         const renderConversations = () => {
             const conversations = ConfigManager.getConversations();
-            const sidebar = document.querySelector('#conversations-sidebar');
+            const sidebar = document.querySelector('#tm-conversations-sidebar');
 
             // Always render the toolbar and list container to ensure they are present
             sidebar.innerHTML = `
-                <div class="conversations-toolbar">
-                    <button class="new-conv-btn">新建对话</button>
-                    <button class="batch-delete-conv-btn">批量删除</button>
+                <div class="tm-conversations-toolbar">
+                    <button class="tm-new-conv-btn">新建对话</button>
+                    <button class="tm-batch-delete-conv-btn">批量删除</button>
                 </div>
-                <div class="conversations-list"></div>
+                <div class="tm-conversations-list"></div>
             `;
 
             // Add event listeners to the newly created buttons
-            sidebar.querySelector('.new-conv-btn').addEventListener('click', createNewConversation);
+            sidebar.querySelector('.tm-new-conv-btn').addEventListener('click', createNewConversation);
 
-            sidebar.querySelector('.batch-delete-conv-btn').addEventListener('click', () => {
-                const checkboxes = sidebar.querySelectorAll('.conv-checkbox:checked');
+            sidebar.querySelector('.tm-batch-delete-conv-btn').addEventListener('click', () => {
+                const checkboxes = sidebar.querySelectorAll('.tm-conv-checkbox:checked');
                 if (checkboxes.length === 0) {
                     alert('请选择要删除的对话');
                     return;
@@ -782,22 +800,22 @@ import 'highlight.js/styles/github-dark.css';
             });
 
             // Populate the list
-            const list = sidebar.querySelector('.conversations-list');
+            const list = sidebar.querySelector('.tm-conversations-list');
             conversations.forEach((conv) => {
                 const item = document.createElement('div');
-                item.className = 'conversation-item';
+                item.className = 'tm-conversation-item';
                 if (conv.id === currentConversationId) {
-                    item.classList.add('active');
+                    item.classList.add('tm-active');
                 }
                 item.dataset.id = conv.id;
 
                 safeInnerHTML(item, `
-                    <input type="checkbox" class="conv-checkbox" data-id="${conv.id}">
-                    <span class="conv-title">${conv.title}</span>
-                    <input type="text" class="conv-rename-input" value="${conv.title}">
-                    <div class="conv-actions">
-                        <button class="conv-action-btn rename-conv-btn" title="重命名">✏️</button>
-                        <button class="conv-action-btn delete-conv-btn" title="删除">🗑️</button>
+                    <input type="checkbox" class="tm-conv-checkbox" data-id="${conv.id}">
+                    <span class="tm-conv-title">${conv.title}</span>
+                    <input type="text" class="tm-conv-rename-input" value="${conv.title}">
+                    <div class="tm-conv-actions">
+                        <button class="tm-conv-action-btn tm-rename-conv-btn" title="重命名">✏️</button>
+                        <button class="tm-conv-action-btn tm-delete-conv-btn" title="删除">🗑️</button>
                     </div>
                 `);
 
@@ -829,12 +847,12 @@ import 'highlight.js/styles/github-dark.css';
             currentConversationId = id;
             conversationMessages = conv.messages || [];
 
-            const messagesContainer = document.querySelector('#messages');
+            const messagesContainer = document.querySelector('#tm-messages');
             messagesContainer.textContent = '';
 
             conversationMessages.forEach((msg, index) => {
                 const msgDiv = document.createElement('div');
-                msgDiv.className = `message ${msg.role}`;
+                msgDiv.className = `tm-message tm-${msg.role}`;
                 msgDiv.dataset.index = index;
                 
                 if (msg.role === 'user') {
@@ -846,17 +864,17 @@ import 'highlight.js/styles/github-dark.css';
                 
                 // 添加操作按钮
                 const actions = document.createElement('div');
-                actions.className = 'message-actions';
+                actions.className = 'tm-message-actions';
                 if (msg.role === 'ai') {
                     safeInnerHTML(actions, `
-                        <button class="message-action-btn copy-msg-btn" title="复制">📋</button>
-                        <button class="message-action-btn delete-msg-btn" title="删除">🗑️</button>
-                        <button class="message-action-btn regenerate-msg-btn" title="重新生成">🔄</button>
+                        <button class="tm-message-action-btn tm-copy-msg-btn" title="复制">📋</button>
+                        <button class="tm-message-action-btn tm-delete-msg-btn" title="删除">🗑️</button>
+                        <button class="tm-message-action-btn tm-regenerate-msg-btn" title="重新生成">🔄</button>
                     `);
                 } else {
                     safeInnerHTML(actions, `
-                        <button class="message-action-btn copy-msg-btn" title="复制">📋</button>
-                        <button class="message-action-btn delete-msg-btn" title="删除">🗑️</button>
+                        <button class="tm-message-action-btn tm-copy-msg-btn" title="复制">📋</button>
+                        <button class="tm-message-action-btn tm-delete-msg-btn" title="删除">🗑️</button>
                     `);
                 }
                 msgDiv.appendChild(actions);
@@ -884,22 +902,22 @@ import 'highlight.js/styles/github-dark.css';
             currentConversationId = newConv.id;
             conversationMessages = [];
 
-            document.querySelector('#messages').textContent = '';
+            document.querySelector('#tm-messages').textContent = '';
             renderConversations();
             
             // 应用系统配置的默认设置
             applySystemDefaults();
         };
 
-        document.querySelector('#conversations-sidebar').addEventListener('click', (e) => {
-            if (e.target.classList.contains('conv-checkbox')) {
+        document.querySelector('#tm-conversations-sidebar').addEventListener('click', (e) => {
+            if (e.target.classList.contains('tm-conv-checkbox')) {
                 e.stopPropagation();
                 return;
             }
 
-            if (e.target.classList.contains('delete-conv-btn')) {
+            if (e.target.classList.contains('tm-delete-conv-btn')) {
                 e.stopPropagation();
-                const item = e.target.closest('.conversation-item');
+                const item = e.target.closest('.tm-conversation-item');
                 const id = item.dataset.id;
                 
                 if (!confirm('确定删除此对话吗？')) return;
@@ -921,25 +939,25 @@ import 'highlight.js/styles/github-dark.css';
                 return;
             }
 
-            if (e.target.classList.contains('rename-conv-btn')) {
+            if (e.target.classList.contains('tm-rename-conv-btn')) {
                 e.stopPropagation();
-                const item = e.target.closest('.conversation-item');
-                const input = item.querySelector('.conv-rename-input');
+                const item = e.target.closest('.tm-conversation-item');
+                const input = item.querySelector('.tm-conv-rename-input');
                 
-                item.classList.add('editing');
+                item.classList.add('tm-editing');
                 input.focus();
                 input.select();
                 return;
             }
 
-            const item = e.target.closest('.conversation-item');
-            if (!item || item.classList.contains('editing')) return;
+            const item = e.target.closest('.tm-conversation-item');
+            if (!item || item.classList.contains('tm-editing')) return;
             loadConversation(item.dataset.id);
         });
 
-        document.querySelector('#conversations-sidebar').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && e.target.classList.contains('conv-rename-input')) {
-                const item = e.target.closest('.conversation-item');
+        document.querySelector('#tm-conversations-sidebar').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target.classList.contains('tm-conv-rename-input')) {
+                const item = e.target.closest('.tm-conversation-item');
                 const id = item.dataset.id;
                 const newTitle = e.target.value.trim();
 
@@ -952,45 +970,45 @@ import 'highlight.js/styles/github-dark.css';
                     }
                 }
 
-                item.classList.remove('editing');
+                item.classList.remove('tm-editing');
                 renderConversations();
-            } else if (e.key === 'Escape' && e.target.classList.contains('conv-rename-input')) {
-                const item = e.target.closest('.conversation-item');
-                item.classList.remove('editing');
+            } else if (e.key === 'Escape' && e.target.classList.contains('tm-conv-rename-input')) {
+                const item = e.target.closest('.tm-conversation-item');
+                item.classList.remove('tm-editing');
             }
         });
 
-        document.querySelector('#conversations-sidebar').addEventListener('blur', (e) => {
-            if (e.target.classList.contains('conv-rename-input')) {
-                const item = e.target.closest('.conversation-item');
+        document.querySelector('#tm-conversations-sidebar').addEventListener('blur', (e) => {
+            if (e.target.classList.contains('tm-conv-rename-input')) {
+                const item = e.target.closest('.tm-conversation-item');
                 setTimeout(() => {
-                    if (item.classList.contains('editing')) {
-                        item.classList.remove('editing');
+                    if (item.classList.contains('tm-editing')) {
+                        item.classList.remove('tm-editing');
                     }
                 }, 200);
             }
         }, true);
 
-        document.querySelector('#new-chat-btn').addEventListener('click', createNewConversation);
+        document.querySelector('#tm-new-chat-btn').addEventListener('click', createNewConversation);
 
         // 清除对话功能
-        document.querySelector('#clear-chat-btn').addEventListener('click', () => {
+        document.querySelector('#tm-clear-chat-btn').addEventListener('click', () => {
             if (confirm('确定要清除当前对话记录吗？')) {
                 conversationMessages = [];
-                document.querySelector('#messages').textContent = '';
+                document.querySelector('#tm-messages').textContent = '';
                 saveCurrentConversation();
             }
         });
 
         // 总结网页功能
-        document.querySelector('#summarize-page-btn').addEventListener('click', async () => {
+        document.querySelector('#tm-summarize-page-btn').addEventListener('click', async () => {
             if (!currentSelectedModel) {
                 alert('请先选择模型');
                 return;
             }
 
-            const input = sidebar.querySelector('#user-input');
-            const messages = sidebar.querySelector('#messages');
+            const input = sidebar.querySelector('#tm-user-input');
+            const messages = sidebar.querySelector('#tm-messages');
 
             // 提取页面内容
             const pageTitle = document.title;
@@ -1045,15 +1063,15 @@ ${pageContent}
 
             // 显示用户消息（简洁版本）
             const userMsg = document.createElement('div');
-            userMsg.className = 'message user';
+            userMsg.className = 'tm-message tm-user';
             userMsg.dataset.index = conversationMessages.length;
             userMsg.textContent = displayText;
             
             const userActions = document.createElement('div');
-            userActions.className = 'message-actions';
+            userActions.className = 'tm-message-actions';
             safeInnerHTML(userActions, `
-                <button class="message-action-btn copy-msg-btn" title="复制">📋</button>
-                <button class="message-action-btn delete-msg-btn" title="删除">🗑️</button>
+                <button class="tm-message-action-btn tm-copy-msg-btn" title="复制">📋</button>
+                <button class="tm-message-action-btn tm-delete-msg-btn" title="删除">🗑️</button>
             `);
             userMsg.appendChild(userActions);
             messages.appendChild(userMsg);
@@ -1069,7 +1087,7 @@ ${pageContent}
             const provider = providers[config.provider];
 
             const aiMsg = document.createElement('div');
-            aiMsg.className = 'message ai';
+            aiMsg.className = 'tm-message tm-ai';
             aiMsg.textContent = '正在总结...';
             messages.appendChild(aiMsg);
 
@@ -1139,12 +1157,12 @@ ${pageContent}
                         let html = '';
                         if (thinkingContent) {
                             const collapsed = isStreamComplete ? 'collapsed' : '';
-                            html += `<div class="thinking-section">
-                                <div class="thinking-header">
-                                    <span class="thinking-toggle ${collapsed}">▼</span>
+                            html += `<div class="tm-thinking-section">
+                                <div class="tm-thinking-header">
+                                    <span class="tm-thinking-toggle ${collapsed}">▼</span>
                                     <span>思考过程</span>
                                 </div>
-                                <div class="thinking-content ${collapsed}">${marked.parse(thinkingContent)}</div>
+                                <div class="tm-thinking-content ${collapsed}">${marked.parse(thinkingContent)}</div>
                             </div>`;
                         }
                         if (mainContent) {
@@ -1317,11 +1335,11 @@ ${pageContent}
                         requestAnimationFrame(() => {
                             // 流式完成后添加操作按钮
                             const aiActions = document.createElement('div');
-                            aiActions.className = 'message-actions';
+                            aiActions.className = 'tm-message-actions';
                             safeInnerHTML(aiActions, `
-                                <button class="message-action-btn copy-msg-btn" title="复制">📋</button>
-                                <button class="message-action-btn delete-msg-btn" title="删除">🗑️</button>
-                                <button class="message-action-btn regenerate-msg-btn" title="重新生成">🔄</button>
+                                <button class="tm-message-action-btn tm-copy-msg-btn" title="复制">📋</button>
+                                <button class="tm-message-action-btn tm-delete-msg-btn" title="删除">🗑️</button>
+                                <button class="tm-message-action-btn tm-regenerate-msg-btn" title="重新生成">🔄</button>
                             `);
                             aiMsg.appendChild(aiActions);
                             aiMsg.dataset.index = conversationMessages.length;
@@ -1371,11 +1389,11 @@ ${pageContent}
                             if (fullContent) {
                                 // 添加AI消息操作按钮
                                 const aiActions = document.createElement('div');
-                                aiActions.className = 'message-actions';
+                                aiActions.className = 'tm-message-actions';
                                 safeInnerHTML(aiActions, `
-                                    <button class="message-action-btn copy-msg-btn" title="复制">📋</button>
-                                    <button class="message-action-btn delete-msg-btn" title="删除">🗑️</button>
-                                    <button class="message-action-btn regenerate-msg-btn" title="重新生成">🔄</button>
+                                    <button class="tm-message-action-btn tm-copy-msg-btn" title="复制">📋</button>
+                                    <button class="tm-message-action-btn tm-delete-msg-btn" title="删除">🗑️</button>
+                                    <button class="tm-message-action-btn tm-regenerate-msg-btn" title="重新生成">🔄</button>
                                 `);
                                 aiMsg.appendChild(aiActions);
                                 aiMsg.dataset.index = conversationMessages.length;
@@ -1410,8 +1428,8 @@ ${pageContent}
         });
 
         // 网页问答模式切换
-        const qaBtn = sidebar.querySelector('#qa-page-btn');
-        const modeIndicator = sidebar.querySelector('#mode-indicator');
+        const qaBtn = sidebar.querySelector('#tm-qa-page-btn');
+        const modeIndicator = sidebar.querySelector('#tm-mode-indicator');
 
         const toggleQaMode = (forceOff = false) => {
             if (forceOff) {
@@ -1423,15 +1441,15 @@ ${pageContent}
             if (isQaMode) {
                 modeIndicator.textContent = '网页问答模式已开启';
                 modeIndicator.style.display = 'block';
-                setTimeout(() => modeIndicator.classList.add('visible'), 10);
-                qaBtn.classList.add('selected');
-                sidebar.querySelector('#user-input').focus();
+                setTimeout(() => modeIndicator.classList.add('tm-visible'), 10);
+                qaBtn.classList.add('tm-selected');
+                sidebar.querySelector('#tm-user-input').focus();
             } else {
-                modeIndicator.classList.remove('visible');
+                modeIndicator.classList.remove('tm-visible');
                 setTimeout(() => {
                     if (!isQaMode) modeIndicator.style.display = 'none';
                 }, 300);
-                qaBtn.classList.remove('selected');
+                qaBtn.classList.remove('tm-selected');
             }
         };
 
@@ -1455,7 +1473,7 @@ ${pageContent}
         }
 
         // 提示词选择下拉菜单
-        const promptDropdown = sidebar.querySelector('#prompt-dropdown');
+        const promptDropdown = sidebar.querySelector('#tm-prompt-dropdown');
 
         const renderPromptDropdown = () => {
             const allPrompts = ConfigManager.getPrompts();
@@ -1465,16 +1483,16 @@ ${pageContent}
             promptDropdown.textContent = '';
 
             if (chatPrompts.length === 0) {
-                safeInnerHTML(promptDropdown, '<div class="prompt-dropdown-item" style="text-align:center;color:#999;">暂无对话提示词</div>');
+                safeInnerHTML(promptDropdown, '<div class="tm-prompt-dropdown-item" style="text-align:center;color:#999;">暂无对话提示词</div>');
                 return;
             }
 
             chatPrompts.forEach((prompt) => {
                 const item = document.createElement('div');
-                item.className = 'prompt-dropdown-item';
+                item.className = 'tm-prompt-dropdown-item';
                 safeInnerHTML(item, `
-                    <div class="prompt-title">${prompt.title || '未命名'}</div>
-                    <div class="prompt-preview">${prompt.content || ''}</div>
+                    <div class="tm-prompt-title">${prompt.title || '未命名'}</div>
+                    <div class="tm-prompt-preview">${prompt.content || ''}</div>
                 `);
                 item.dataset.index = prompt.originalIndex;
                 promptDropdown.appendChild(item);
@@ -1485,25 +1503,25 @@ ${pageContent}
             e.stopPropagation();
             const isOpen = promptDropdown.style.display === 'block';
             promptDropdown.style.display = isOpen ? 'none' : 'block';
-            sidebar.querySelector('#params-panel').style.display = 'none';
-            sidebar.querySelector('#params-selector-btn').classList.remove('selected');
+            sidebar.querySelector('#tm-params-panel').style.display = 'none';
+            sidebar.querySelector('#tm-params-selector-btn').classList.remove('tm-selected');
             if (!isOpen) renderPromptDropdown();
         });
 
         // 模型参数设置
         let modelParams = {temperature: 0.7, max_tokens: 2048, memory_rounds: 15};
-        const paramsSelectorBtn = sidebar.querySelector('#params-selector-btn');
-        const paramsPanel = sidebar.querySelector('#params-panel');
-        const tempInput = sidebar.querySelector('#param-temperature');
-        const maxTokensInput = sidebar.querySelector('#param-max-tokens');
-        const memoryInput = sidebar.querySelector('#param-memory-rounds');
+        const paramsSelectorBtn = sidebar.querySelector('#tm-params-selector-btn');
+        const paramsPanel = sidebar.querySelector('#tm-params-panel');
+        const tempInput = sidebar.querySelector('#tm-param-temperature');
+        const maxTokensInput = sidebar.querySelector('#tm-param-max-tokens');
+        const memoryInput = sidebar.querySelector('#tm-param-memory-rounds');
 
         paramsSelectorBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const isOpen = paramsPanel.style.display === 'block';
             paramsPanel.style.display = isOpen ? 'none' : 'block';
             promptDropdown.style.display = 'none';
-            paramsSelectorBtn.classList.toggle('selected', !isOpen);
+            paramsSelectorBtn.classList.toggle('tm-selected', !isOpen);
         });
 
         tempInput.addEventListener('input', (e) => {
@@ -1519,14 +1537,14 @@ ${pageContent}
         });
 
         promptDropdown.addEventListener('click', (e) => {
-            const item = e.target.closest('.prompt-dropdown-item');
+            const item = e.target.closest('.tm-prompt-dropdown-item');
             if (!item || !item.dataset.index) return;
 
             const prompts = ConfigManager.getPrompts();
             const prompt = prompts[parseInt(item.dataset.index)];
             currentSystemPrompt = prompt.content;
             promptDropdown.style.display = 'none';
-            promptSelectorBtn.classList.add('selected');
+            promptSelectorBtn.classList.add('tm-selected');
             promptSelectorBtn.title = `已选择: ${prompt.title}`;
         });
 
@@ -1535,17 +1553,17 @@ ${pageContent}
         renderPromptDropdown();
 
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.input-area')) {
+            if (!e.target.closest('.tm-input-area')) {
                 promptDropdown.style.display = 'none';
                 paramsPanel.style.display = 'none';
-                paramsSelectorBtn.classList.remove('selected');
+                paramsSelectorBtn.classList.remove('tm-selected');
             }
         });
 
         // 对话功能
         const sendMessage = async (options = {}) => {
-            const input = sidebar.querySelector('#user-input');
-            const messages = sidebar.querySelector('#messages');
+            const input = sidebar.querySelector('#tm-user-input');
+            const messages = sidebar.querySelector('#tm-messages');
             
             let text = options.text !== undefined ? options.text : input.value.trim();
             let isSummary = options.isSummary || false;
@@ -1604,15 +1622,15 @@ ${pageContent}
             }
 
             const userMsg = document.createElement('div');
-            userMsg.className = 'message user';
+            userMsg.className = 'tm-message tm-user';
             userMsg.dataset.index = conversationMessages.length;
             userMsg.textContent = displayText;
             
             const userActions = document.createElement('div');
-            userActions.className = 'message-actions';
+            userActions.className = 'tm-message-actions';
             safeInnerHTML(userActions, `
-                <button class="message-action-btn copy-msg-btn" title="复制">📋</button>
-                <button class="message-action-btn delete-msg-btn" title="删除">🗑️</button>
+                <button class="tm-message-action-btn tm-copy-msg-btn" title="复制">📋</button>
+                <button class="tm-message-action-btn tm-delete-msg-btn" title="删除">🗑️</button>
             `);
             userMsg.appendChild(userActions);
             messages.appendChild(userMsg);
@@ -1631,7 +1649,7 @@ ${pageContent}
             const provider = providers[config.provider];
 
             const aiMsg = document.createElement('div');
-            aiMsg.className = 'message ai';
+            aiMsg.className = 'tm-message tm-ai';
             aiMsg.textContent = '思考中...';
             messages.appendChild(aiMsg);
 
@@ -1701,12 +1719,12 @@ ${pageContent}
                         let html = '';
                         if (thinkingContent) {
                             const collapsed = isStreamComplete ? 'collapsed' : '';
-                            html += `<div class="thinking-section">
-                                <div class="thinking-header">
-                                    <span class="thinking-toggle ${collapsed}">▼</span>
+                            html += `<div class="tm-thinking-section">
+                                <div class="tm-thinking-header">
+                                    <span class="tm-thinking-toggle ${collapsed}">▼</span>
                                     <span>思考过程</span>
                                 </div>
-                                <div class="thinking-content ${collapsed}">${marked.parse(thinkingContent)}</div>
+                                <div class="tm-thinking-content ${collapsed}">${marked.parse(thinkingContent)}</div>
                             </div>`;
                         }
                         if (mainContent) {
@@ -1879,11 +1897,11 @@ ${pageContent}
                         requestAnimationFrame(() => {
                             // 流式完成后添加操作按钮
                             const aiActions = document.createElement('div');
-                            aiActions.className = 'message-actions';
+                            aiActions.className = 'tm-message-actions';
                             safeInnerHTML(aiActions, `
-                                <button class="message-action-btn copy-msg-btn" title="复制">📋</button>
-                                <button class="message-action-btn delete-msg-btn" title="删除">🗑️</button>
-                                <button class="message-action-btn regenerate-msg-btn" title="重新生成">🔄</button>
+                                <button class="tm-message-action-btn tm-copy-msg-btn" title="复制">📋</button>
+                                <button class="tm-message-action-btn tm-delete-msg-btn" title="删除">🗑️</button>
+                                <button class="tm-message-action-btn tm-regenerate-msg-btn" title="重新生成">🔄</button>
                             `);
                             aiMsg.appendChild(aiActions);
                             aiMsg.dataset.index = conversationMessages.length;
@@ -1933,11 +1951,11 @@ ${pageContent}
                             if (fullContent) {
                                 // 添加AI消息操作按钮
                                 const aiActions = document.createElement('div');
-                                aiActions.className = 'message-actions';
+                                aiActions.className = 'tm-message-actions';
                                 safeInnerHTML(aiActions, `
-                                    <button class="message-action-btn copy-msg-btn" title="复制">📋</button>
-                                    <button class="message-action-btn delete-msg-btn" title="删除">🗑️</button>
-                                    <button class="message-action-btn regenerate-msg-btn" title="重新生成">🔄</button>
+                                    <button class="tm-message-action-btn tm-copy-msg-btn" title="复制">📋</button>
+                                    <button class="tm-message-action-btn tm-delete-msg-btn" title="删除">🗑️</button>
+                                    <button class="tm-message-action-btn tm-regenerate-msg-btn" title="重新生成">🔄</button>
                                 `);
                                 aiMsg.appendChild(aiActions);
                                 aiMsg.dataset.index = conversationMessages.length;
@@ -1972,25 +1990,25 @@ ${pageContent}
         };
 
         // 消息操作事件处理
-        sidebar.querySelector('#messages').addEventListener('click', async (e) => {
-            const thinkingHeader = e.target.closest('.thinking-header');
+        sidebar.querySelector('#tm-messages').addEventListener('click', async (e) => {
+            const thinkingHeader = e.target.closest('.tm-thinking-header');
             if (thinkingHeader) {
-                const toggle = thinkingHeader.querySelector('.thinking-toggle');
+                const toggle = thinkingHeader.querySelector('.tm-thinking-toggle');
                 const content = thinkingHeader.nextElementSibling;
                 if (toggle && content) {
-                    toggle.classList.toggle('collapsed');
-                    content.classList.toggle('collapsed');
+                    toggle.classList.toggle('tm-collapsed');
+                    content.classList.toggle('tm-collapsed');
                 }
                 return;
             }
 
-            const btn = e.target.closest('.message-action-btn');
+            const btn = e.target.closest('.tm-message-action-btn');
             if (!btn) return;
 
-            const msgDiv = btn.closest('.message');
+            const msgDiv = btn.closest('.tm-message');
             const msgIndex = parseInt(msgDiv.dataset.index);
 
-            if (btn.classList.contains('copy-msg-btn')) {
+            if (btn.classList.contains('tm-copy-msg-btn')) {
                 // 复制消息
                 const msg = conversationMessages[msgIndex];
                 try {
@@ -2000,7 +2018,7 @@ ${pageContent}
                 } catch (err) {
                     alert('复制失败');
                 }
-            } else if (btn.classList.contains('delete-msg-btn')) {
+            } else if (btn.classList.contains('tm-delete-msg-btn')) {
                 // 删除消息
                 if (!confirm('确定删除此消息吗？')) return;
                 
@@ -2014,7 +2032,7 @@ ${pageContent}
                 });
                 
                 saveCurrentConversation();
-            } else if (btn.classList.contains('regenerate-msg-btn')) {
+            } else if (btn.classList.contains('tm-regenerate-msg-btn')) {
                 // 重新生成
                 if (!confirm('确定重新生成此回复吗？')) return;
 
@@ -2046,8 +2064,8 @@ ${pageContent}
             }
         });
 
-        sidebar.querySelector('#send-btn').addEventListener('click', sendMessage);
-        sidebar.querySelector('#user-input').addEventListener('keydown', (e) => {
+        sidebar.querySelector('#tm-send-btn').addEventListener('click', sendMessage);
+        sidebar.querySelector('#tm-user-input').addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
@@ -2057,27 +2075,27 @@ ${pageContent}
         // 提示词库功能
         const renderPrompts = () => {
             const prompts = ConfigManager.getPrompts();
-            const chatList = sidebar.querySelector('#chat-prompts-list');
-            const translateList = sidebar.querySelector('#translate-prompts-list');
+            const chatList = sidebar.querySelector('#tm-chat-prompts-list');
+            const translateList = sidebar.querySelector('#tm-translate-prompts-list');
             
             chatList.textContent = '';
             translateList.textContent = '';
 
             prompts.forEach((prompt, index) => {
                 const item = document.createElement('div');
-                item.className = 'prompt-item';
+                item.className = 'tm-prompt-item';
                 item.dataset.index = index;
                 safeInnerHTML(item, `
-                    <input type="checkbox" class="prompt-checkbox" data-index="${index}">
-                    <div class="prompt-header">
-                        <div class="prompt-title">${prompt.title || '未命名'}</div>
-                        <div class="prompt-actions">
-                            <button class="view-btn" data-index="${index}">查看</button>
-                            <button class="edit-btn" data-index="${index}">编辑</button>
-                            <button class="delete-btn" data-index="${index}">删除</button>
+                    <input type="checkbox" class="tm-prompt-checkbox" data-index="${index}">
+                    <div class="tm-prompt-header">
+                        <div class="tm-prompt-title">${prompt.title || '未命名'}</div>
+                        <div class="tm-prompt-actions">
+                            <button class="tm-view-btn" data-index="${index}">查看</button>
+                            <button class="tm-edit-btn" data-index="${index}">编辑</button>
+                            <button class="tm-delete-btn" data-index="${index}">删除</button>
                         </div>
                     </div>
-                    <div class="prompt-content" style="display:none;">${prompt.content || ''}</div>
+                    <div class="tm-prompt-content" style="display:none;">${prompt.content || ''}</div>
                 `);
                 
                 if (prompt.type === 'translate') {
@@ -2088,7 +2106,7 @@ ${pageContent}
             });
         };
 
-        sidebar.querySelector('#add-prompt').addEventListener('click', () => {
+        sidebar.querySelector('#tm-add-prompt').addEventListener('click', () => {
             const prompts = ConfigManager.getPrompts();
             // Default to chat type
             prompts.push({title: '', content: '', type: 'chat'});
@@ -2096,14 +2114,14 @@ ${pageContent}
             renderPrompts();
             // Find the newly added item (last one)
             const index = prompts.length - 1;
-            const item = sidebar.querySelector(`.prompt-item[data-index="${index}"]`);
+            const item = sidebar.querySelector(`.tm-prompt-item[data-index="${index}"]`);
             if (item) {
-                item.querySelector('.edit-btn').click();
+                item.querySelector('.tm-edit-btn').click();
             }
         });
 
-        sidebar.querySelector('#batch-delete-prompt').addEventListener('click', () => {
-            const checkboxes = sidebar.querySelectorAll('.prompt-checkbox:checked');
+        sidebar.querySelector('#tm-batch-delete-prompt').addEventListener('click', () => {
+            const checkboxes = sidebar.querySelectorAll('.tm-prompt-checkbox:checked');
             if (checkboxes.length === 0) {
                 alert('请选择要删除的提示词');
                 return;
@@ -2119,43 +2137,43 @@ ${pageContent}
 
         const handlePromptListClick = (e) => {
             const index = parseInt(e.target.dataset.index);
-            const item = sidebar.querySelector(`.prompt-item[data-index="${index}"]`);
+            const item = sidebar.querySelector(`.tm-prompt-item[data-index="${index}"]`);
 
-            if (e.target.classList.contains('view-btn')) {
-                const content = item.querySelector('.prompt-content');
+            if (e.target.classList.contains('tm-view-btn')) {
+                const content = item.querySelector('.tm-prompt-content');
                 content.style.display = content.style.display === 'none' ? 'block' : 'none';
-            } else if (e.target.classList.contains('edit-btn')) {
+            } else if (e.target.classList.contains('tm-edit-btn')) {
                 const prompts = ConfigManager.getPrompts();
                 const prompt = prompts[index];
-                item.classList.add('editing');
+                item.classList.add('tm-editing');
                 safeInnerHTML(item, `
-                    <div class="prompt-form">
-                        <input type="text" placeholder="标题" value="${prompt.title || ''}" class="prompt-title-input">
-                        <div class="form-group" style="margin: 5px 0;">
+                    <div class="tm-prompt-form">
+                        <input type="text" placeholder="标题" value="${prompt.title || ''}" class="tm-prompt-title-input">
+                        <div class="tm-form-group" style="margin: 5px 0;">
                             <label style="font-size: 12px; margin-right: 10px;">类型:</label>
-                            <select class="prompt-type-select" style="padding: 4px; border-radius: 4px; border: 1px solid #ddd;">
+                            <select class="tm-prompt-type-select" style="padding: 4px; border-radius: 4px; border: 1px solid #ddd;">
                                 <option value="chat" ${(!prompt.type || prompt.type === 'chat') ? 'selected' : ''}>对话提示词</option>
                                 <option value="translate" ${prompt.type === 'translate' ? 'selected' : ''}>翻译提示词</option>
                             </select>
                         </div>
-                        <textarea placeholder="内容" class="prompt-content-input">${prompt.content || ''}</textarea>
-                        <div class="form-actions">
-                            <button class="save-prompt-btn" data-index="${index}">保存</button>
-                            <button class="cancel-btn" data-index="${index}">取消</button>
+                        <textarea placeholder="内容" class="tm-prompt-content-input">${prompt.content || ''}</textarea>
+                        <div class="tm-form-actions">
+                            <button class="tm-save-prompt-btn" data-index="${index}">保存</button>
+                            <button class="tm-cancel-btn" data-index="${index}">取消</button>
                         </div>
                     </div>
                 `);
-            } else if (e.target.classList.contains('delete-btn')) {
+            } else if (e.target.classList.contains('tm-delete-btn')) {
                 if (!confirm('确定删除此提示词吗？')) return;
                 const prompts = ConfigManager.getPrompts();
                 prompts.splice(index, 1);
                 ConfigManager.savePrompts(prompts);
                 renderPrompts();
-            } else if (e.target.classList.contains('save-prompt-btn')) {
+            } else if (e.target.classList.contains('tm-save-prompt-btn')) {
                 const prompts = ConfigManager.getPrompts();
-                const titleInput = item.querySelector('.prompt-title-input');
-                const contentInput = item.querySelector('.prompt-content-input');
-                const typeSelect = item.querySelector('.prompt-type-select');
+                const titleInput = item.querySelector('.tm-prompt-title-input');
+                const contentInput = item.querySelector('.tm-prompt-content-input');
+                const typeSelect = item.querySelector('.tm-prompt-type-select');
                 
                 prompts[index] = {
                     title: titleInput.value.trim() || '未命名',
@@ -2164,21 +2182,21 @@ ${pageContent}
                 };
                 ConfigManager.savePrompts(prompts);
                 renderPrompts();
-            } else if (e.target.classList.contains('cancel-btn')) {
+            } else if (e.target.classList.contains('tm-cancel-btn')) {
                 renderPrompts();
             }
         };
 
-        sidebar.querySelector('#prompts-container').addEventListener('click', handlePromptListClick);
+        sidebar.querySelector('#tm-prompts-container').addEventListener('click', handlePromptListClick);
 
         renderPrompts();
         
         // 系统配置功能
         const renderSystemConfig = () => {
             const systemConfig = ConfigManager.getSystemConfig();
-            const modelSelect = sidebar.querySelector('#default-model-select');
-            const promptSelect = sidebar.querySelector('#default-prompt-select');
-            const translatePromptSelect = sidebar.querySelector('#default-translate-prompt-select');
+            const modelSelect = sidebar.querySelector('#tm-default-model-select');
+            const promptSelect = sidebar.querySelector('#tm-default-prompt-select');
+            const translatePromptSelect = sidebar.querySelector('#tm-default-translate-prompt-select');
             
             // 填充模型选项
             modelSelect.innerHTML = '<option value="">未设置</option>';
@@ -2227,10 +2245,10 @@ ${pageContent}
             });
         };
         
-        sidebar.querySelector('#save-system-config').addEventListener('click', () => {
-            const modelSelect = sidebar.querySelector('#default-model-select');
-            const promptSelect = sidebar.querySelector('#default-prompt-select');
-            const translatePromptSelect = sidebar.querySelector('#default-translate-prompt-select');
+        sidebar.querySelector('#tm-save-system-config').addEventListener('click', () => {
+            const modelSelect = sidebar.querySelector('#tm-default-model-select');
+            const promptSelect = sidebar.querySelector('#tm-default-prompt-select');
+            const translatePromptSelect = sidebar.querySelector('#tm-default-translate-prompt-select');
             
             const config = {
                 defaultModel: modelSelect.value || null,
@@ -2243,7 +2261,7 @@ ${pageContent}
         });
         
         // 监听标签页切换，当切换到系统配置时刷新选项
-        sidebar.querySelectorAll('.tab').forEach(tab => {
+        sidebar.querySelectorAll('.tm-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 if (tab.dataset.tab === 'system') {
                     renderSystemConfig();
@@ -2263,10 +2281,10 @@ ${pageContent}
         let targetLang = 'en';
 
         const renderTranslateModels = () => {
-            const dropdown = sidebar.querySelector('#translate-model-dropdown');
+            const dropdown = sidebar.querySelector('#tm-translate-model-dropdown');
             const systemConfig = ConfigManager.getSystemConfig();
             const providers = ConfigManager.getProviders();
-            const currentModelSpan = sidebar.querySelector('#current-translate-model');
+            const currentModelSpan = sidebar.querySelector('#tm-current-translate-model');
             
             dropdown.innerHTML = '';
             
@@ -2276,13 +2294,13 @@ ${pageContent}
                 if (models.length > 0) hasModels = true;
                 models.forEach(model => {
                     const item = document.createElement('div');
-                    item.className = 'translate-dropdown-item';
+                    item.className = 'tm-translate-dropdown-item';
                     const modelValue = JSON.stringify({provider: providerIndex, model: model});
                     item.dataset.value = modelValue;
                     item.textContent = `${provider.name} - ${model}`;
                     
                     if (currentTranslateModel === modelValue) {
-                        item.classList.add('selected');
+                        item.classList.add('tm-selected');
                         currentModelSpan.textContent = `${provider.name} - ${model}`;
                     }
                     
@@ -2291,7 +2309,7 @@ ${pageContent}
             });
 
             if (!hasModels) {
-                dropdown.innerHTML = '<div class="translate-dropdown-item">请先在AI提供商中添加模型</div>';
+                dropdown.innerHTML = '<div class="tm-translate-dropdown-item">请先在AI提供商中添加模型</div>';
                 // 如果没有模型，重置当前翻译模型
                 currentTranslateModel = null;
                 if (currentModelSpan) currentModelSpan.textContent = '未选择模型';
@@ -2314,18 +2332,18 @@ ${pageContent}
         const renderTranslatePrompts = () => {
             const systemConfig = ConfigManager.getSystemConfig();
             const prompts = ConfigManager.getPrompts();
-            const dropdown = sidebar.querySelector('#translate-style-dropdown');
-            const currentStyleSpan = sidebar.querySelector('#current-translate-style');
+            const dropdown = sidebar.querySelector('#tm-translate-style-dropdown');
+            const currentStyleSpan = sidebar.querySelector('#tm-current-translate-style');
             
             dropdown.innerHTML = '';
             
             // 默认选项
             const defaultItem = document.createElement('div');
-            defaultItem.className = 'translate-dropdown-item';
+            defaultItem.className = 'tm-translate-dropdown-item';
             defaultItem.dataset.value = "";
             defaultItem.textContent = '默认 (通用翻译)';
             if (currentTranslatePromptIndex === "") {
-                defaultItem.classList.add('selected');
+                defaultItem.classList.add('tm-selected');
                 currentStyleSpan.textContent = '默认 (通用翻译)';
             }
             dropdown.appendChild(defaultItem);
@@ -2334,12 +2352,12 @@ ${pageContent}
                 if (prompt.type !== 'translate') return; // Only show translate prompts
 
                 const item = document.createElement('div');
-                item.className = 'translate-dropdown-item';
+                item.className = 'tm-translate-dropdown-item';
                 item.dataset.value = index;
                 item.textContent = prompt.title || '未命名';
                 
                 if (currentTranslatePromptIndex === index.toString()) {
-                    item.classList.add('selected');
+                    item.classList.add('tm-selected');
                     currentStyleSpan.textContent = prompt.title || '未命名';
                 }
                 
@@ -2348,10 +2366,10 @@ ${pageContent}
         };
 
         // 翻译设置下拉菜单事件
-        const translateModelBtn = sidebar.querySelector('#translate-model-btn');
-        const translateStyleBtn = sidebar.querySelector('#translate-style-btn');
-        const translateModelDropdown = sidebar.querySelector('#translate-model-dropdown');
-        const translateStyleDropdown = sidebar.querySelector('#translate-style-dropdown');
+        const translateModelBtn = sidebar.querySelector('#tm-translate-model-btn');
+        const translateStyleBtn = sidebar.querySelector('#tm-translate-style-btn');
+        const translateModelDropdown = sidebar.querySelector('#tm-translate-model-dropdown');
+        const translateStyleDropdown = sidebar.querySelector('#tm-translate-style-dropdown');
 
         translateModelBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -2368,7 +2386,7 @@ ${pageContent}
         });
 
         translateModelDropdown.addEventListener('click', (e) => {
-            const item = e.target.closest('.translate-dropdown-item');
+            const item = e.target.closest('.tm-translate-dropdown-item');
             if (!item || !item.dataset.value) return;
 
             currentTranslateModel = item.dataset.value;
@@ -2377,7 +2395,7 @@ ${pageContent}
         });
 
         translateStyleDropdown.addEventListener('click', (e) => {
-            const item = e.target.closest('.translate-dropdown-item');
+            const item = e.target.closest('.tm-translate-dropdown-item');
             if (!item) return;
 
             currentTranslatePromptIndex = item.dataset.value;
@@ -2386,23 +2404,23 @@ ${pageContent}
         });
 
         // Language Selection Logic
-        const sourceLangBtn = sidebar.querySelector('#source-lang-btn');
-        const targetLangBtn = sidebar.querySelector('#target-lang-btn');
-        const swapLangBtn = sidebar.querySelector('#swap-lang-btn');
-        const sourceLangDropdown = sidebar.querySelector('#source-lang-dropdown');
-        const targetLangDropdown = sidebar.querySelector('#target-lang-dropdown');
+        const sourceLangBtn = sidebar.querySelector('#tm-source-lang-btn');
+        const targetLangBtn = sidebar.querySelector('#tm-target-lang-btn');
+        const swapLangBtn = sidebar.querySelector('#tm-swap-lang-btn');
+        const sourceLangDropdown = sidebar.querySelector('#tm-source-lang-dropdown');
+        const targetLangDropdown = sidebar.querySelector('#tm-target-lang-dropdown');
 
         const renderLanguageList = (container, type) => {
-            const listContainer = container.querySelector('.language-list');
+            const listContainer = container.querySelector('.tm-language-list');
             listContainer.innerHTML = '';
 
             LANGUAGES.forEach(lang => {
                 if (type !== 'source' && lang.isSourceOnly) return;
 
                 const item = document.createElement('div');
-                item.className = 'language-item';
+                item.className = 'tm-language-item';
                 const isSelected = type === 'source' ? sourceLang === lang.code : targetLang === lang.code;
-                if (isSelected) item.classList.add('selected');
+                if (isSelected) item.classList.add('tm-selected');
                 item.textContent = lang.zh;
                 item.dataset.code = lang.code;
                 item.dataset.zh = lang.zh;
@@ -2413,7 +2431,7 @@ ${pageContent}
         };
 
         const filterLanguages = (container, keyword) => {
-            const items = container.querySelectorAll('.language-item');
+            const items = container.querySelectorAll('.tm-language-item');
             keyword = keyword.toLowerCase();
             items.forEach(item => {
                 if (item.dataset.code === 'auto') return; // Always show auto
@@ -2451,7 +2469,7 @@ ${pageContent}
             sourceLangDropdown.style.display = isOpen ? 'none' : 'flex';
             targetLangDropdown.style.display = 'none';
             if (!isOpen) {
-                sourceLangDropdown.querySelector('.language-search').focus();
+                sourceLangDropdown.querySelector('.tm-language-search').focus();
             }
         });
 
@@ -2461,7 +2479,7 @@ ${pageContent}
             targetLangDropdown.style.display = isOpen ? 'none' : 'flex';
             sourceLangDropdown.style.display = 'none';
             if (!isOpen) {
-                targetLangDropdown.querySelector('.language-search').focus();
+                targetLangDropdown.querySelector('.tm-language-search').focus();
             }
         });
 
@@ -2484,9 +2502,9 @@ ${pageContent}
         });
 
         // Search Functionality
-        sidebar.querySelectorAll('.language-search').forEach(input => {
+        sidebar.querySelectorAll('.tm-language-search').forEach(input => {
             input.addEventListener('input', (e) => {
-                const container = e.target.closest('.language-dropdown');
+                const container = e.target.closest('.tm-language-dropdown');
                 filterLanguages(container, e.target.value);
             });
             input.addEventListener('click', (e) => e.stopPropagation());
@@ -2494,7 +2512,7 @@ ${pageContent}
 
         // Selection Event
         const handleLanguageSelect = (e, type) => {
-            const item = e.target.closest('.language-item');
+            const item = e.target.closest('.tm-language-item');
             if (!item) return;
 
             const code = item.dataset.code;
@@ -2516,19 +2534,19 @@ ${pageContent}
         targetLangDropdown.addEventListener('click', (e) => handleLanguageSelect(e, 'target'));
 
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.translate-language-selector')) {
+            if (!e.target.closest('.tm-translate-language-selector')) {
                 sourceLangDropdown.style.display = 'none';
                 targetLangDropdown.style.display = 'none';
             }
-            if (!e.target.closest('.translate-card-title')) {
+            if (!e.target.closest('.tm-translate-card-title')) {
                 translateModelDropdown.style.display = 'none';
                 translateStyleDropdown.style.display = 'none';
             }
         });
 
         const translate = async () => {
-            const input = sidebar.querySelector('#translate-input').value.trim();
-            const output = sidebar.querySelector('#translate-output');
+            const input = sidebar.querySelector('#tm-translate-input').value.trim();
+            const output = sidebar.querySelector('#tm-translate-output');
 
             if (!input) {
                 alert('请输入要翻译的内容');
@@ -2612,11 +2630,11 @@ ${pageContent}
                 output.value = `翻译出错: ${error.message}`;
             }
             // 更新输出字数
-            const outputCount = sidebar.querySelector('#output-count');
+            const outputCount = sidebar.querySelector('#tm-output-count');
             if (outputCount) outputCount.textContent = output.value.length;
         };
 
-        sidebar.querySelector('#translate-btn').addEventListener('click', translate);
+        sidebar.querySelector('#tm-translate-btn').addEventListener('click', translate);
         
         // 字数统计更新函数
         const updateCharCount = (inputId, countId) => {
@@ -2628,27 +2646,27 @@ ${pageContent}
         };
 
         // 输入框事件监听
-        const translateInput = sidebar.querySelector('#translate-input');
+        const translateInput = sidebar.querySelector('#tm-translate-input');
         if (translateInput) {
             translateInput.addEventListener('input', () => {
-                updateCharCount('#translate-input', '#input-count');
+                updateCharCount('#tm-translate-input', '#tm-input-count');
             });
         }
 
         // 清空按钮
-        sidebar.querySelector('#clear-translate-btn').addEventListener('click', () => {
-            sidebar.querySelector('#translate-input').value = '';
-            sidebar.querySelector('#translate-output').value = '';
-            updateCharCount('#translate-input', '#input-count');
-            const outputCount = sidebar.querySelector('#output-count');
+        sidebar.querySelector('#tm-clear-translate-btn').addEventListener('click', () => {
+            sidebar.querySelector('#tm-translate-input').value = '';
+            sidebar.querySelector('#tm-translate-output').value = '';
+            updateCharCount('#tm-translate-input', '#tm-input-count');
+            const outputCount = sidebar.querySelector('#tm-output-count');
             if (outputCount) outputCount.textContent = '0';
         });
 
         // 复制输入按钮
-        const copyInputBtn = sidebar.querySelector('#copy-input-btn');
+        const copyInputBtn = sidebar.querySelector('#tm-copy-input-btn');
         if (copyInputBtn) {
             copyInputBtn.addEventListener('click', async () => {
-                const input = sidebar.querySelector('#translate-input');
+                const input = sidebar.querySelector('#tm-translate-input');
                 if (!input.value) return;
                 
                 try {
@@ -2663,13 +2681,13 @@ ${pageContent}
         }
 
         // 复制输出按钮
-        sidebar.querySelector('#copy-translate-btn').addEventListener('click', async () => {
-            const output = sidebar.querySelector('#translate-output');
+        sidebar.querySelector('#tm-copy-translate-btn').addEventListener('click', async () => {
+            const output = sidebar.querySelector('#tm-translate-output');
             if (!output.value) return;
             
             try {
                 await navigator.clipboard.writeText(output.value);
-                const btn = sidebar.querySelector('#copy-translate-btn');
+                const btn = sidebar.querySelector('#tm-copy-translate-btn');
                 const originalText = btn.textContent;
                 btn.textContent = '✓';
                 setTimeout(() => btn.textContent = originalText, 1000);

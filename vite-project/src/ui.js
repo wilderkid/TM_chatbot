@@ -28,7 +28,7 @@ export const safeInnerHTML = (element, html, fallbackText) => {
 
 export const applyTheme = (themeName) => {
     const theme = THEMES[themeName] || THEMES.default;
-    const sidebar = document.getElementById('ai-chat-sidebar');
+    const sidebar = document.getElementById('tm-ai-chat-sidebar');
     
     if (!sidebar) return;
 
@@ -58,29 +58,29 @@ export const applyTheme = (themeName) => {
     }
 
     // Special handling for header text color based on gradient
-    const header = sidebar.querySelector('.sidebar-header');
+    const header = sidebar.querySelector('.tm-sidebar-header');
     if (header) {
         if (themeName === 'notion' || themeName === 'youtube' || themeName === 'apple') {
             header.style.color = '#333';
             header.style.borderBottom = `1px solid ${theme.colors.border}`;
             header.querySelectorAll('button').forEach(btn => {
-                if (!btn.classList.contains('close-btn')) {
+                if (!btn.classList.contains('tm-close-btn')) {
                     btn.style.color = '#333';
                     btn.style.background = 'rgba(0,0,0,0.05)';
                 }
             });
-            const closeBtn = header.querySelector('.close-btn');
+            const closeBtn = header.querySelector('.tm-close-btn');
             if (closeBtn) closeBtn.style.color = '#333';
         } else {
             header.style.color = 'white';
             header.style.borderBottom = 'none';
             header.querySelectorAll('button').forEach(btn => {
-                if (!btn.classList.contains('close-btn')) {
+                if (!btn.classList.contains('tm-close-btn')) {
                     btn.style.color = 'white';
                     btn.style.background = 'rgba(255,255,255,0.2)';
                 }
             });
-            const closeBtn = header.querySelector('.close-btn');
+            const closeBtn = header.querySelector('.tm-close-btn');
             if (closeBtn) closeBtn.style.color = 'white';
         }
     }
@@ -91,59 +91,59 @@ export const applyTheme = (themeName) => {
 // 创建侧边栏HTML
 export const createSidebar = () => {
     const sidebar = document.createElement('div');
-    sidebar.id = 'ai-chat-sidebar';
+    sidebar.id = 'tm-ai-chat-sidebar';
 
     // 创建调整大小的手柄
     ['left', 'right', 'top', 'bottom'].forEach(pos => {
         const handle = document.createElement('div');
-        handle.className = `resize-handle-${pos}`;
+        handle.className = `tm-resize-handle-${pos}`;
         sidebar.appendChild(handle);
     });
     ['tl', 'tr', 'bl', 'br'].forEach(pos => {
         const handle = document.createElement('div');
-        handle.className = `resize-handle-corner-${pos}`;
+        handle.className = `tm-resize-handle-corner-${pos}`;
         sidebar.appendChild(handle);
     });
 
     // 创建头部
     const header = document.createElement('div');
-    header.className = 'sidebar-header';
+    header.className = 'tm-sidebar-header';
 
     const tabs = document.createElement('div');
-    tabs.className = 'tabs';
-    tabs.id = 'tabs-container';
+    tabs.className = 'tm-tabs';
+    tabs.id = 'tm-tabs-container';
 
     ['chat', 'translate', 'providers', 'prompts', 'system'].forEach((tab, i) => {
         const btn = document.createElement('button');
-        btn.className = i === 0 ? 'tab active' : 'tab';
+        btn.className = i === 0 ? 'tm-tab tm-active' : 'tm-tab';
         btn.dataset.tab = tab;
         btn.textContent = tab === 'chat' ? '对话' : tab === 'translate' ? '翻译' : tab === 'providers' ? 'AI提供商' : tab === 'prompts' ? '提示词库' : '系统配置';
         tabs.appendChild(btn);
     });
 
     const controls = document.createElement('div');
-    controls.className = 'header-controls';
+    controls.className = 'tm-header-controls';
     
     const themeBtn = document.createElement('button');
-    themeBtn.className = 'theme-btn';
+    themeBtn.className = 'tm-theme-btn';
     themeBtn.textContent = '🎨';
     themeBtn.title = '切换主题';
     
     const themeDropdown = document.createElement('div');
-    themeDropdown.className = 'theme-dropdown';
+    themeDropdown.className = 'tm-theme-dropdown';
     Object.entries(THEMES).forEach(([key, theme]) => {
         const item = document.createElement('div');
-        item.className = 'theme-item';
+        item.className = 'tm-theme-item';
         item.dataset.theme = key;
         item.innerHTML = `
-            <span class="theme-preview" style="background: ${theme.colors.primaryGradient}"></span>
+            <span class="tm-theme-preview" style="background: ${theme.colors.primaryGradient}"></span>
             <span>${theme.name}</span>
         `;
         themeDropdown.appendChild(item);
     });
     
     const closeBtn = document.createElement('button');
-    closeBtn.className = 'close-btn';
+    closeBtn.className = 'tm-close-btn';
     closeBtn.textContent = '×';
 
     controls.appendChild(themeBtn);
@@ -156,29 +156,29 @@ export const createSidebar = () => {
 
     // 创建内容区
     const content = document.createElement('div');
-    content.className = 'sidebar-content';
+    content.className = 'tm-sidebar-content';
 
     // 对话标签页
     const chatTab = document.createElement('div');
-    chatTab.className = 'tab-content active';
-    chatTab.id = 'chat-tab';
+    chatTab.className = 'tm-tab-content tm-active';
+    chatTab.id = 'tm-chat-tab';
 
     const chatContainer = document.createElement('div');
-    chatContainer.className = 'chat-container';
+    chatContainer.className = 'tm-chat-container';
 
     const conversationsSidebar = document.createElement('div');
-    conversationsSidebar.className = 'conversations-sidebar';
-    conversationsSidebar.id = 'conversations-sidebar';
+    conversationsSidebar.className = 'tm-conversations-sidebar';
+    conversationsSidebar.id = 'tm-conversations-sidebar';
 
     const conversationsToolbar = document.createElement('div');
-    conversationsToolbar.className = 'conversations-toolbar';
+    conversationsToolbar.className = 'tm-conversations-toolbar';
 
     const batchDeleteConversationBtn = document.createElement('button');
-    batchDeleteConversationBtn.id = 'batch-delete-conversation-btn';
+    batchDeleteConversationBtn.id = 'tm-batch-delete-conversation-btn';
     batchDeleteConversationBtn.textContent = '批量删除';
 
     const newConversationBtn = document.createElement('button');
-    newConversationBtn.id = 'new-conversation-btn-toolbar';
+    newConversationBtn.id = 'tm-new-conversation-btn-toolbar';
     newConversationBtn.textContent = '新建对话';
 
     conversationsToolbar.appendChild(batchDeleteConversationBtn);
@@ -186,73 +186,73 @@ export const createSidebar = () => {
     conversationsSidebar.appendChild(conversationsToolbar);
 
     const chatMain = document.createElement('div');
-    chatMain.className = 'chat-main';
+    chatMain.className = 'tm-chat-main';
 
     const modelSelector = document.createElement('div');
-    modelSelector.className = 'model-selector';
+    modelSelector.className = 'tm-model-selector';
     const modelBtn = document.createElement('button');
-    modelBtn.id = 'model-display-btn';
+    modelBtn.id = 'tm-model-display-btn';
     const modelName = document.createElement('span');
-    modelName.id = 'model-name';
+    modelName.id = 'tm-model-name';
     modelName.textContent = '选择模型';
     const arrow = document.createElement('span');
-    arrow.className = 'arrow';
+    arrow.className = 'tm-arrow';
     arrow.textContent = '▼';
     modelBtn.appendChild(modelName);
     modelBtn.appendChild(arrow);
     const modelDropdown = document.createElement('div');
-    modelDropdown.id = 'model-dropdown';
-    modelDropdown.className = 'model-dropdown';
+    modelDropdown.id = 'tm-model-dropdown';
+    modelDropdown.className = 'tm-model-dropdown';
     modelDropdown.style.display = 'none';
     modelSelector.appendChild(modelBtn);
     modelSelector.appendChild(modelDropdown);
 
     const messages = document.createElement('div');
-    messages.className = 'messages';
-    messages.id = 'messages';
+    messages.className = 'tm-messages';
+    messages.id = 'tm-messages';
 
     const inputArea = document.createElement('div');
-    inputArea.className = 'input-area';
+    inputArea.className = 'tm-input-area';
     const inputWrapper = document.createElement('div');
-    inputWrapper.className = 'input-wrapper';
+    inputWrapper.className = 'tm-input-wrapper';
 
     const btnContainer = document.createElement('div');
     btnContainer.style.display = 'flex';
     btnContainer.style.gap = '5px';
 
     const newChatBtn = document.createElement('button');
-    newChatBtn.id = 'new-chat-btn';
-    newChatBtn.className = 'prompt-icon-top';
+    newChatBtn.id = 'tm-new-chat-btn';
+    newChatBtn.className = 'tm-prompt-icon-top';
     newChatBtn.title = '新建对话';
     newChatBtn.textContent = '➕';
 
     const promptBtn = document.createElement('button');
-    promptBtn.id = 'prompt-selector-btn';
-    promptBtn.className = 'prompt-icon-top';
+    promptBtn.id = 'tm-prompt-selector-btn';
+    promptBtn.className = 'tm-prompt-icon-top';
     promptBtn.title = '选择提示词';
     promptBtn.textContent = '💡';
 
     const paramsBtn = document.createElement('button');
-    paramsBtn.id = 'params-selector-btn';
-    paramsBtn.className = 'prompt-icon-top';
+    paramsBtn.id = 'tm-params-selector-btn';
+    paramsBtn.className = 'tm-prompt-icon-top';
     paramsBtn.title = '模型参数';
     paramsBtn.textContent = '⚙️';
 
     const clearBtn = document.createElement('button');
-    clearBtn.id = 'clear-chat-btn';
-    clearBtn.className = 'prompt-icon-top';
+    clearBtn.id = 'tm-clear-chat-btn';
+    clearBtn.className = 'tm-prompt-icon-top';
     clearBtn.title = '清除对话';
     clearBtn.textContent = '🗑️';
 
     const summarizeBtn = document.createElement('button');
-    summarizeBtn.id = 'summarize-page-btn';
-    summarizeBtn.className = 'prompt-icon-top';
+    summarizeBtn.id = 'tm-summarize-page-btn';
+    summarizeBtn.className = 'tm-prompt-icon-top';
     summarizeBtn.title = '总结网页';
     summarizeBtn.textContent = '📄';
 
     const qaBtn = document.createElement('button');
-    qaBtn.id = 'qa-page-btn';
-    qaBtn.className = 'prompt-icon-top';
+    qaBtn.id = 'tm-qa-page-btn';
+    qaBtn.className = 'tm-prompt-icon-top';
     qaBtn.title = '问答网页';
     qaBtn.textContent = '❓';
  
@@ -264,33 +264,33 @@ export const createSidebar = () => {
     btnContainer.appendChild(qaBtn);
 
     const textarea = document.createElement('textarea');
-    textarea.id = 'user-input';
+    textarea.id = 'tm-user-input';
     textarea.placeholder = '输入消息...';
 
     inputWrapper.appendChild(btnContainer);
     inputWrapper.appendChild(textarea);
 
     const sendBtn = document.createElement('button');
-    sendBtn.id = 'send-btn';
+    sendBtn.id = 'tm-send-btn';
     sendBtn.textContent = '发送';
 
     const promptDropdown = document.createElement('div');
-    promptDropdown.id = 'prompt-dropdown';
-    promptDropdown.className = 'prompt-dropdown';
+    promptDropdown.id = 'tm-prompt-dropdown';
+    promptDropdown.className = 'tm-prompt-dropdown';
     promptDropdown.style.display = 'none';
 
     const paramsPanel = document.createElement('div');
-    paramsPanel.id = 'params-panel';
-    paramsPanel.className = 'params-panel';
+    paramsPanel.id = 'tm-params-panel';
+    paramsPanel.className = 'tm-params-panel';
     paramsPanel.style.display = 'none';
 
     const tempItem = document.createElement('div');
-    tempItem.className = 'params-item';
+    tempItem.className = 'tm-params-item';
     const tempLabel = document.createElement('label');
     tempLabel.textContent = '温度 (Temperature):';
     const tempInput = document.createElement('input');
     tempInput.type = 'number';
-    tempInput.id = 'param-temperature';
+    tempInput.id = 'tm-param-temperature';
     tempInput.min = '0';
     tempInput.max = '2';
     tempInput.step = '0.1';
@@ -299,12 +299,12 @@ export const createSidebar = () => {
     tempItem.appendChild(tempInput);
 
     const tokensItem = document.createElement('div');
-    tokensItem.className = 'params-item';
+    tokensItem.className = 'tm-params-item';
     const tokensLabel = document.createElement('label');
     tokensLabel.textContent = '最大上下文 (Max Tokens):';
     const tokensInput = document.createElement('input');
     tokensInput.type = 'number';
-    tokensInput.id = 'param-max-tokens';
+    tokensInput.id = 'tm-param-max-tokens';
     tokensInput.min = '1';
     tokensInput.step = '1';
     tokensInput.value = '2048';
@@ -312,12 +312,12 @@ export const createSidebar = () => {
     tokensItem.appendChild(tokensInput);
 
     const memoryItem = document.createElement('div');
-    memoryItem.className = 'params-item';
+    memoryItem.className = 'tm-params-item';
     const memoryLabel = document.createElement('label');
     memoryLabel.textContent = '记忆轮数:';
     const memoryInput = document.createElement('input');
     memoryInput.type = 'number';
-    memoryInput.id = 'param-memory-rounds';
+    memoryInput.id = 'tm-param-memory-rounds';
     memoryInput.min = '0';
     memoryInput.step = '1';
     memoryInput.value = '15';
@@ -335,8 +335,8 @@ export const createSidebar = () => {
     inputArea.appendChild(paramsPanel);
 
     const modeIndicator = document.createElement('div');
-    modeIndicator.id = 'mode-indicator';
-    modeIndicator.className = 'mode-indicator';
+    modeIndicator.id = 'tm-mode-indicator';
+    modeIndicator.className = 'tm-mode-indicator';
     modeIndicator.style.display = 'none';
     inputArea.appendChild(modeIndicator);
  
@@ -350,25 +350,25 @@ export const createSidebar = () => {
 
     // 提供商标签页
     const providersTab = document.createElement('div');
-    providersTab.className = 'tab-content';
-    providersTab.id = 'providers-tab';
+    providersTab.className = 'tm-tab-content';
+    providersTab.id = 'tm-providers-tab';
     const providersContainer = document.createElement('div');
-    providersContainer.className = 'providers-container';
+    providersContainer.className = 'tm-providers-container';
     const providersSidebar = document.createElement('div');
-    providersSidebar.className = 'providers-sidebar';
+    providersSidebar.className = 'tm-providers-sidebar';
     const addProviderBtn = document.createElement('button');
-    addProviderBtn.id = 'add-provider-btn';
+    addProviderBtn.id = 'tm-add-provider-btn';
     addProviderBtn.textContent = '+ 添加供应商';
     const providersList = document.createElement('div');
-    providersList.className = 'providers-list';
-    providersList.id = 'providers-sidebar-list';
+    providersList.className = 'tm-providers-list';
+    providersList.id = 'tm-providers-sidebar-list';
     providersSidebar.appendChild(addProviderBtn);
     providersSidebar.appendChild(providersList);
     const providerDetail = document.createElement('div');
-    providerDetail.className = 'provider-detail';
-    providerDetail.id = 'provider-detail';
+    providerDetail.className = 'tm-provider-detail';
+    providerDetail.id = 'tm-provider-detail';
     const emptyState = document.createElement('div');
-    emptyState.className = 'empty-state';
+    emptyState.className = 'tm-empty-state';
     emptyState.textContent = '请选择或添加一个供应商';
     providerDetail.appendChild(emptyState);
     providersContainer.appendChild(providersSidebar);
@@ -377,21 +377,21 @@ export const createSidebar = () => {
 
     // 提示词标签页
     const promptsTab = document.createElement('div');
-    promptsTab.className = 'tab-content';
-    promptsTab.id = 'prompts-tab';
+    promptsTab.className = 'tm-tab-content';
+    promptsTab.id = 'tm-prompts-tab';
     const promptsToolbar = document.createElement('div');
-    promptsToolbar.className = 'prompts-toolbar';
+    promptsToolbar.className = 'tm-prompts-toolbar';
     const addPromptBtn = document.createElement('button');
-    addPromptBtn.id = 'add-prompt';
+    addPromptBtn.id = 'tm-add-prompt';
     addPromptBtn.textContent = '+ 新增';
     const batchDeleteBtn = document.createElement('button');
-    batchDeleteBtn.id = 'batch-delete-prompt';
+    batchDeleteBtn.id = 'tm-batch-delete-prompt';
     batchDeleteBtn.textContent = '批量删除';
     promptsToolbar.appendChild(addPromptBtn);
     promptsToolbar.appendChild(batchDeleteBtn);
     const promptsContainer = document.createElement('div');
-    promptsContainer.className = 'prompts-list';
-    promptsContainer.id = 'prompts-container';
+    promptsContainer.className = 'tm-prompts-list';
+    promptsContainer.id = 'tm-prompts-container';
 
     const chatHeader = document.createElement('h4');
     chatHeader.textContent = '对话提示词';
@@ -399,18 +399,18 @@ export const createSidebar = () => {
     chatHeader.style.color = 'var(--ai-text, #333)';
     
     const chatList = document.createElement('div');
-    chatList.id = 'chat-prompts-list';
+    chatList.id = 'tm-chat-prompts-list';
     
     const translateHeader = document.createElement('h4');
     translateHeader.innerHTML = `
         翻译提示词
-        <span id="translate-prompt-help" class="help-icon" title="查看可用变量">?</span>
+        <span id="tm-translate-prompt-help" class="tm-help-icon" title="查看可用变量">?</span>
     `;
     translateHeader.style.margin = '20px 0 10px 0';
     translateHeader.style.color = 'var(--ai-text, #333)';
     
     const translateList = document.createElement('div');
-    translateList.id = 'translate-prompts-list';
+    translateList.id = 'tm-translate-prompts-list';
 
     promptsContainer.appendChild(chatHeader);
     promptsContainer.appendChild(chatList);
@@ -422,130 +422,130 @@ export const createSidebar = () => {
 
     // 系统配置标签页
     const systemTab = document.createElement('div');
-    systemTab.className = 'tab-content';
-    systemTab.id = 'system-tab';
+    systemTab.className = 'tm-tab-content';
+    systemTab.id = 'tm-system-tab';
     const systemContainer = document.createElement('div');
-    systemContainer.className = 'system-config-container';
+    systemContainer.className = 'tm-system-config-container';
     systemContainer.innerHTML = `
         <h3>系统配置</h3>
-        <div class="config-section">
+        <div class="tm-config-section">
             <h4>新建对话默认设置</h4>
-            <div class="form-group">
+            <div class="tm-form-group">
                 <label>默认模型</label>
-                <select id="default-model-select" class="config-select">
+                <select id="tm-default-model-select" class="tm-config-select">
                     <option value="">未设置</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="tm-form-group">
                 <label>默认提示词</label>
-                <select id="default-prompt-select" class="config-select">
+                <select id="tm-default-prompt-select" class="tm-config-select">
                     <option value="">未设置</option>
                 </select>
             </div>
-            <div class="form-group">
+            <div class="tm-form-group">
                 <label>默认翻译提示词</label>
-                <select id="default-translate-prompt-select" class="config-select">
+                <select id="tm-default-translate-prompt-select" class="tm-config-select">
                     <option value="">未设置</option>
                 </select>
             </div>
-            <button id="save-system-config" class="save-btn">保存配置</button>
+            <button id="tm-save-system-config" class="tm-save-btn">保存配置</button>
         </div>
     `;
     systemTab.appendChild(systemContainer);
 
     // 翻译标签页
     const translateTab = document.createElement('div');
-    translateTab.className = 'tab-content';
-    translateTab.id = 'translate-tab';
+    translateTab.className = 'tm-tab-content';
+    translateTab.id = 'tm-translate-tab';
     const translateContainer = document.createElement('div');
-    translateContainer.className = 'translate-container';
+    translateContainer.className = 'tm-translate-container';
     translateContainer.innerHTML = `
-        <div class="translate-card">
-            <div class="translate-card-title">
+        <div class="tm-translate-card">
+            <div class="tm-translate-card-title">
                 <span>⚙️ 翻译设置</span>
-                <div class="translate-text-area-actions">
-                    <div class="translate-action-btn" id="translate-model-btn" title="选择模型">
+                <div class="tm-translate-text-area-actions">
+                    <div class="tm-translate-action-btn" id="tm-translate-model-btn" title="选择模型">
                         <span>🤖</span>
                     </div>
-                    <div class="translate-action-btn" id="translate-style-btn" title="选择风格">
+                    <div class="tm-translate-action-btn" id="tm-translate-style-btn" title="选择风格">
                         <span>🎨</span>
                     </div>
                 </div>
             </div>
-            <div class="translate-current-settings">
-                <span id="current-translate-model">未选择模型</span>
-                <span class="separator">|</span>
-                <span id="current-translate-style">默认风格</span>
+            <div class="tm-translate-current-settings">
+                <span id="tm-current-translate-model">未选择模型</span>
+                <span class="tm-separator">|</span>
+                <span id="tm-current-translate-style">默认风格</span>
             </div>
             
             <!-- Language Selection -->
-            <div class="translate-language-selector">
-                <div class="language-btn-container">
-                    <button id="source-lang-btn" class="language-btn" data-lang="auto">自动检测</button>
-                    <div id="source-lang-dropdown" class="language-dropdown" style="display: none;">
-                        <input type="text" class="language-search" placeholder="搜索语言 (中文/英文/拼音)...">
-                        <div class="language-list"></div>
+            <div class="tm-translate-language-selector">
+                <div class="tm-language-btn-container">
+                    <button id="tm-source-lang-btn" class="tm-language-btn" data-lang="auto">自动检测</button>
+                    <div id="tm-source-lang-dropdown" class="tm-language-dropdown" style="display: none;">
+                        <input type="text" class="tm-language-search" placeholder="搜索语言 (中文/英文/拼音)...">
+                        <div class="tm-language-list"></div>
                     </div>
                 </div>
                 
-                <button id="swap-lang-btn" class="swap-btn" title="交换语言">⇄</button>
+                <button id="tm-swap-lang-btn" class="tm-swap-btn" title="交换语言">⇄</button>
                 
-                <div class="language-btn-container">
-                    <button id="target-lang-btn" class="language-btn" data-lang="en">英语</button>
-                    <div id="target-lang-dropdown" class="language-dropdown" style="display: none;">
-                        <input type="text" class="language-search" placeholder="搜索语言 (中文/英文/拼音)...">
-                        <div class="language-list"></div>
+                <div class="tm-language-btn-container">
+                    <button id="tm-target-lang-btn" class="tm-language-btn" data-lang="en">英语</button>
+                    <div id="tm-target-lang-dropdown" class="tm-language-dropdown" style="display: none;">
+                        <input type="text" class="tm-language-search" placeholder="搜索语言 (中文/英文/拼音)...">
+                        <div class="tm-language-list"></div>
                     </div>
                 </div>
             </div>
             
             <!-- Hidden Dropdowns -->
-            <div id="translate-model-dropdown" class="translate-dropdown" style="display: none;">
+            <div id="tm-translate-model-dropdown" class="tm-translate-dropdown" style="display: none;">
                 <!-- Models will be populated here -->
             </div>
-            <div id="translate-style-dropdown" class="translate-dropdown" style="display: none;">
+            <div id="tm-translate-style-dropdown" class="tm-translate-dropdown" style="display: none;">
                 <!-- Styles will be populated here -->
             </div>
         </div>
 
-        <div class="translate-card">
-            <div class="translate-card-title">
+        <div class="tm-translate-card">
+            <div class="tm-translate-card-title">
                 <span>⌨️ 输入文本</span>
-                <div class="translate-text-area-actions">
-                    <div class="translate-action-btn" id="clear-translate-btn" title="清除">
+                <div class="tm-translate-text-area-actions">
+                    <div class="tm-translate-action-btn" id="tm-clear-translate-btn" title="清除">
                         <span>🗑️</span>
                     </div>
-                    <div class="translate-action-btn" id="copy-input-btn" title="复制">
+                    <div class="tm-translate-action-btn" id="tm-copy-input-btn" title="复制">
                         <span>📋</span>
                     </div>
                 </div>
             </div>
-            <div class="translate-text-area-container">
-                <textarea id="translate-input" placeholder="请输入要翻译的文本..."></textarea>
+            <div class="tm-translate-text-area-container">
+                <textarea id="tm-translate-input" placeholder="请输入要翻译的文本..."></textarea>
             </div>
-            <div class="translate-char-count">
-                <span id="input-count">0</span>/5000
+            <div class="tm-translate-char-count">
+                <span id="tm-input-count">0</span>/5000
             </div>
         </div>
 
-        <button class="translate-main-btn" id="translate-btn">
+        <button class="tm-translate-main-btn" id="tm-translate-btn">
             <span>🌐 翻译文本</span>
         </button>
 
-        <div class="translate-card">
-            <div class="translate-card-title">
+        <div class="tm-translate-card">
+            <div class="tm-translate-card-title">
                 <span>📄 翻译结果</span>
-                <div class="translate-text-area-actions">
-                    <div class="translate-action-btn" id="copy-translate-btn" title="复制">
+                <div class="tm-translate-text-area-actions">
+                    <div class="tm-translate-action-btn" id="tm-copy-translate-btn" title="复制">
                         <span>📋</span>
                     </div>
                 </div>
             </div>
-            <div class="translate-text-area-container">
-                <textarea id="translate-output" placeholder="翻译结果将显示在这里..." readonly></textarea>
+            <div class="tm-translate-text-area-container">
+                <textarea id="tm-translate-output" placeholder="翻译结果将显示在这里..." readonly></textarea>
             </div>
-            <div class="translate-char-count">
-                <span id="output-count">0</span> 字符
+            <div class="tm-translate-char-count">
+                <span id="tm-output-count">0</span> 字符
             </div>
         </div>
     `;
@@ -562,12 +562,12 @@ export const createSidebar = () => {
 
     // 添加提示词帮助弹窗
     const helpModal = document.createElement('div');
-    helpModal.id = 'prompt-help-modal';
-    helpModal.className = 'prompt-help-modal';
+    helpModal.id = 'tm-prompt-help-modal';
+    helpModal.className = 'tm-prompt-help-modal';
     helpModal.style.display = 'none';
     helpModal.innerHTML = `
-        <div class="modal-content">
-            <span class="modal-close-btn">&times;</span>
+        <div class="tm-modal-content">
+            <span class="tm-modal-close-btn">&times;</span>
             <h3>翻译提示词可用变量</h3>
             <p>您可以在翻译提示词中使用以下变量，系统会在翻译时自动替换它们：</p>
             <ul>
@@ -587,7 +587,7 @@ export const createSidebar = () => {
 // 创建触发按钮
 export const createTriggerButton = () => {
     const btn = document.createElement('button');
-    btn.id = 'ai-chat-trigger';
+    btn.id = 'tm-ai-chat-trigger';
     btn.textContent = '💬';
     btn.title = 'AI对话';
     
