@@ -7,42 +7,46 @@ export const addStyles = () => {
 
     const style = document.createElement('style');
     style.textContent = `
+        
         #tm-ai-chat-trigger {
-            position: fixed;
-            right: 20px;
-            bottom: 20px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: var(--ai-primaryGradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
-            border: none;
-            color: white;
-            font-size: 28px;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 9998;
-            transition: transform 0.2s;
+            position: fixed !important;
+            right: 20px !important;
+            bottom: 20px !important;
+            width: 60px !important;
+            height: 60px !important;
+            border-radius: 50% !important;
+            background: var(--ai-primaryGradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+            border: none !important;
+            color: white !important;
+            font-size: 28px !important;
+            cursor: pointer !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+            z-index: 9998 !important;
+            transition: transform 0.2s !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
         #tm-ai-chat-trigger:hover {
             transform: scale(1.1);
         }
         #tm-ai-chat-sidebar {
-            position: fixed;
-            top: 0;
-            right: 0;
-            width: 400px;
-            height: 100vh;
-            background: var(--ai-bg, white);
-            color: var(--ai-text, #333);
-            box-shadow: var(--ai-shadowLg, -2px 0 8px rgba(0,0,0,0.1));
-            z-index: 9999;
-            display: none;
-            flex-direction: column;
-            border-radius: 0;
-            font-family: var(--ai-fontFamily, inherit);
+            position: fixed !important;
+            top: 0 !important;
+            right: 0 !important;
+            width: 400px !important;
+            height: 100vh !important;
+            background: var(--ai-bg, white) !important;
+            color: var(--ai-text, #333) !important;
+            box-shadow: var(--ai-shadowLg, -2px 0 8px rgba(0,0,0,0.1)) !important;
+            z-index: 9999 !important;
+            display: none !important;
+            flex-direction: column !important;
+            border-radius: 0 !important;
+            font-family: var(--ai-fontFamily, inherit) !important;
         }
         #tm-ai-chat-sidebar.tm-open {
-            display: flex;
+            display: flex !important;
         }
         #tm-ai-chat-sidebar.tm-resizing, #tm-ai-chat-sidebar.tm-dragging {
             transition: none;
@@ -124,7 +128,7 @@ export const addStyles = () => {
             margin-left: auto;
             position: relative;
         }
-        .tm-theme-btn {
+        .tm-theme-btn, .tm-refresh-btn {
             background: rgba(255,255,255,0.2);
             border: none;
             color: white;
@@ -138,7 +142,7 @@ export const addStyles = () => {
             font-size: 14px;
             transition: background 0.2s;
         }
-        .tm-theme-btn:hover {
+        .tm-theme-btn:hover, .tm-refresh-btn:hover {
             background: rgba(255,255,255,0.3);
         }
         .tm-theme-dropdown {
@@ -209,9 +213,9 @@ export const addStyles = () => {
             background: none;
             border: none;
             color: white;
-            font-size: 28px;
+            font-size: 28px !important;
             cursor: pointer;
-            line-height: 1;
+            line-height: 1 !important;
             padding: 0 5px;
         }
         .tm-sidebar-content {
@@ -263,16 +267,6 @@ export const addStyles = () => {
         }
         .tm-message:hover .tm-message-actions {
             opacity: 1;
-        }
-        .tm-message.tm-user {
-            background: var(--ai-userMsgBg, #667eea);
-            color: var(--ai-userMsgText, white);
-            align-self: flex-end;
-        }
-        .tm-message.tm-ai {
-            background: var(--ai-aiMsgBg, #f0f0f0);
-            color: var(--ai-aiMsgText, #333);
-            align-self: flex-start;
         }
         .tm-message-actions {
             opacity: 0;

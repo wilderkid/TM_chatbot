@@ -142,12 +142,18 @@ export const createSidebar = () => {
         themeDropdown.appendChild(item);
     });
     
+    const refreshBtn = document.createElement('button');
+    refreshBtn.className = 'tm-refresh-btn';
+    refreshBtn.textContent = '🔄';
+    refreshBtn.title = '刷新脚本状态';
+    
     const closeBtn = document.createElement('button');
     closeBtn.className = 'tm-close-btn';
     closeBtn.textContent = '×';
 
     controls.appendChild(themeBtn);
     controls.appendChild(themeDropdown);
+    controls.appendChild(refreshBtn);
     controls.appendChild(closeBtn);
 
     header.appendChild(tabs);
@@ -448,6 +454,18 @@ export const createSidebar = () => {
                     <option value="">未设置</option>
                 </select>
             </div>
+            <div class="tm-form-group">
+                <label>默认温度</label>
+                <input type="number" id="tm-default-temperature" class="tm-config-select" min="0" max="2" step="0.1" placeholder="0.7">
+            </div>
+            <div class="tm-form-group">
+                <label>默认最大上下文</label>
+                <input type="number" id="tm-default-max-tokens" class="tm-config-select" min="1" step="1" placeholder="2048">
+            </div>
+            <div class="tm-form-group">
+                <label>默认记忆轮数</label>
+                <input type="number" id="tm-default-memory-rounds" class="tm-config-select" min="0" step="1" placeholder="15">
+            </div>
             <button id="tm-save-system-config" class="tm-save-btn">保存配置</button>
         </div>
     `;
@@ -558,8 +576,6 @@ export const createSidebar = () => {
     content.appendChild(systemTab);
     sidebar.appendChild(content);
 
-    document.body.appendChild(sidebar);
-
     // 添加提示词帮助弹窗
     const helpModal = document.createElement('div');
     helpModal.id = 'tm-prompt-help-modal';
@@ -599,6 +615,5 @@ export const createTriggerButton = () => {
         btn.style.bottom = 'auto';
     }
     
-    document.body.appendChild(btn);
     return btn;
 };

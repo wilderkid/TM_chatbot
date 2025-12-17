@@ -43,7 +43,14 @@ export const ConfigManager = {
     saveConversations: (conversations) => GM_setValue('conversations', conversations),
     getTheme: () => GM_getValue('theme', 'default'),
     saveTheme: (theme) => GM_setValue('theme', theme),
-    getSystemConfig: () => GM_getValue('system_config', {defaultModel: null, defaultPrompt: null, defaultTranslatePrompt: null}),
+    getSystemConfig: () => GM_getValue('system_config', {
+        defaultModel: null,
+        defaultPrompt: null,
+        defaultTranslatePrompt: null,
+        defaultTemperature: null,
+        defaultMaxTokens: null,
+        defaultMemoryRounds: null
+    }),
     saveSystemConfig: (config) => GM_setValue('system_config', config),
     getTriggerPosition: () => GM_getValue('trigger_position', null),
     saveTriggerPosition: (pos) => GM_setValue('trigger_position', pos),
