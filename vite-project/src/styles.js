@@ -31,19 +31,45 @@ export const addStyles = () => {
             transform: scale(1.1);
         }
         #tm-ai-chat-sidebar {
+            /* 位置和尺寸 */
             position: fixed !important;
             top: 0 !important;
             right: 0 !important;
             width: 400px !important;
             height: 100vh !important;
+            z-index: 9999 !important;
+            
+            /* 布局 */
+            display: none !important;
+            flex-direction: column !important;
+            
+            /* 外观 */
             background: var(--ai-bg, white) !important;
             color: var(--ai-text, #333) !important;
             box-shadow: var(--ai-shadowLg, -2px 0 8px rgba(0,0,0,0.1)) !important;
-            z-index: 9999 !important;
-            display: none !important;
-            flex-direction: column !important;
             border-radius: 0 !important;
-            font-family: var(--ai-fontFamily, inherit) !important;
+            border: none !important;
+            
+            /* 字体重置 - 防止被页面样式覆盖 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+            font-size: 14px !important;
+            font-weight: 400 !important;
+            line-height: 1.5 !important;
+            letter-spacing: normal !important;
+            text-transform: none !important;
+            text-decoration: none !important;
+            
+            /* 其他重置 */
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+        }
+        
+        /* 确保所有子元素也使用正确的字体 */
+        #tm-ai-chat-sidebar * {
+            font-family: inherit !important;
+            box-sizing: border-box !important;
         }
         #tm-ai-chat-sidebar.tm-open {
             display: flex !important;
