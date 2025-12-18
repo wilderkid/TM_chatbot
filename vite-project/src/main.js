@@ -395,16 +395,17 @@ import { fetchWithProxy } from './proxy-fetch.js';
                     <h3>供应商信息</h3>
                     <div class="tm-form-group">
                         <label>供应商名称</label>
-                        <input type="text" value="${provider.name || ''}" id="provider-name-${index}">
+                        <input type="text" value="${provider.name || ''}" id="provider-name-${index}" autocomplete="off">
                     </div>
                     <div class="tm-form-group">
                         <label>API URL</label>
-                        <input type="text" value="${provider.url || ''}" id="provider-url-${index}" placeholder="例如: https://api.openai.com">
+                        <input type="text" value="${provider.url || ''}" id="provider-url-${index}" placeholder="例如: https://api.openai.com" autocomplete="off">
                     </div>
                     <div class="tm-final-url-display" id="final-url-${index}"></div>
+                    <input type="text" style="display:none;" autocomplete="username">
                     <div class="tm-form-group tm-password-group">
                         <label>API Key</label>
-                        <input type="password" value="${provider.key || ''}" id="provider-key-${index}">
+                        <input type="password" value="${provider.key || ''}" id="provider-key-${index}" autocomplete="new-password">
                         <span class="tm-toggle-password" data-target="provider-key-${index}">👁️</span>
                     </div>
                     <div class="tm-form-actions">
@@ -556,6 +557,23 @@ import { fetchWithProxy } from './proxy-fetch.js';
                 if (!confirm('确定删除此供应商吗？')) return;
 
                 const providers = ConfigManager.getProviders();
+                
+                // 删除该供应商的模型和可用模型列表数据
+                ConfigManager.saveModels(index, []);
+                ConfigManager.saveAvailableModels(index, []);
+                
+                // 重新组织所有供应商的数据：将后面的供应商数据前移
+                for (let i = index + 1; i < providers.length; i++) {
+                    const models = ConfigManager.getModels(i);
+                    const availableModels = ConfigManager.getAvailableModels(i);
+                    ConfigManager.saveModels(i - 1, models);
+                    ConfigManager.saveAvailableModels(i - 1, availableModels);
+                }
+                
+                // 清理最后一个供应商的数据（因为已经前移了）
+                ConfigManager.saveModels(providers.length - 1, []);
+                ConfigManager.saveAvailableModels(providers.length - 1, []);
+                
                 providers.splice(index, 1);
                 ConfigManager.saveProviders(providers);
 
