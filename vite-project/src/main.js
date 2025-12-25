@@ -40,6 +40,41 @@ import { fetchWithProxy } from './proxy-fetch.js';
         return messages;
     };
 
+    // 智能提取网页文本内容
+    const extractPageContent = () => {
+        // 克隆body以避免影响原页面
+        const clone = document.body.cloneNode(true);
+        
+        // 移除不需要的标签
+        const tagsToRemove = ['script', 'style', 'noscript', 'iframe', 'nav', 'header', 'footer', 'aside', 'form', 'button'];
+        tagsToRemove.forEach(tag => {
+            clone.querySelectorAll(tag).forEach(el => el.remove());
+        });
+        
+        // 移除隐藏元素
+        clone.querySelectorAll('*').forEach(el => {
+            const style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+                el.remove();
+            }
+        });
+        
+        // 优先提取主要内容区域
+        const mainContent = clone.querySelector('main, article, [role="main"], .content, .main, #content, #main');
+        const textSource = mainContent || clone;
+        
+        // 提取文本并清理
+        let text = textSource.innerText || textSource.textContent || '';
+        
+        // 清理多余空白
+        text = text
+            .replace(/\n\s*\n\s*\n/g, '\n\n')  // 多个空行变成两个
+            .replace(/[ \t]+/g, ' ')            // 多个空格变成一个
+            .trim();
+        
+        return text;
+    };
+
     const init = () => {
         console.log('[TM Debug] 开始初始化');
         
@@ -1160,7 +1195,7 @@ import { fetchWithProxy } from './proxy-fetch.js';
             const messages = sidebar.querySelector('#tm-messages');
             const sendBtn = sidebar.querySelector('#tm-send-btn');
             const pageTitle = document.title;
-            let pageContent = document.querySelector('main, article, .content, .main, #content, #main')?.innerText || document.body.innerText;
+            let pageContent = extractPageContent();
             
             const maxLength = 8000;
             if (pageContent.length > maxLength) {
@@ -1340,7 +1375,7 @@ import { fetchWithProxy } from './proxy-fetch.js';
 
             if (isQaMode) {
                 const userQuestion = text;
-                let pageContent = document.querySelector('main, article, .content, .main, #content, #main')?.innerText || document.body.innerText;
+                let pageContent = extractPageContent();
                 const maxLength = 8000;
                 if (pageContent.length > maxLength) {
                     pageContent = pageContent.substring(0, maxLength) + '...(内容过长已截断)';
