@@ -601,7 +601,6 @@ import { fetchWithProxy } from './proxy-fetch.js';
             if (e.target.classList.contains('tm-delete-icon')) {
                 e.stopPropagation();
                 const index = parseInt(e.target.dataset.index);
-                if (!confirm('确定删除此供应商吗？')) return;
 
                 const providers = ConfigManager.getProviders();
                 
@@ -693,7 +692,6 @@ import { fetchWithProxy } from './proxy-fetch.js';
             } else if (e.target.classList.contains('tm-delete-model-btn')) {
                 const providerIndex = parseInt(e.target.dataset.provider);
                 const modelIndex = parseInt(e.target.dataset.model);
-                if (!confirm('确定删除此模型吗？')) return;
                 const models = ConfigManager.getModels(providerIndex);
                 models.splice(modelIndex, 1);
                 ConfigManager.saveModels(providerIndex, models);
@@ -832,7 +830,6 @@ import { fetchWithProxy } from './proxy-fetch.js';
                     alert('请选择要删除的对话');
                     return;
                 }
-                if (!confirm(`确定删除选中的 ${checkboxes.length} 个对话吗？`)) return;
 
                 const currentConversations = ConfigManager.getConversations();
                 const idsToDelete = Array.from(checkboxes).map(cb => cb.dataset.id);
@@ -967,8 +964,6 @@ import { fetchWithProxy } from './proxy-fetch.js';
                 e.stopPropagation();
                 const item = e.target.closest('.tm-conversation-item');
                 const id = item.dataset.id;
-                
-                if (!confirm('确定删除此对话吗？')) return;
 
                 const conversations = ConfigManager.getConversations();
                 const filtered = conversations.filter(c => c.id !== id);
@@ -1040,11 +1035,9 @@ import { fetchWithProxy } from './proxy-fetch.js';
         document.querySelector('#tm-new-chat-btn').addEventListener('click', createNewConversation);
 
         document.querySelector('#tm-clear-chat-btn').addEventListener('click', () => {
-            if (confirm('确定要清除当前对话记录吗？')) {
-                conversationMessages = [];
-                document.querySelector('#tm-messages').textContent = '';
-                saveCurrentConversation();
-            }
+            conversationMessages = [];
+            document.querySelector('#tm-messages').textContent = '';
+            saveCurrentConversation();
         });
 
         const executeApiRequestWithStream = async (requestContext) => {
@@ -1502,14 +1495,12 @@ import { fetchWithProxy } from './proxy-fetch.js';
                     alert('复制失败');
                 }
             } else if (btn.classList.contains('tm-delete-msg-btn')) {
-                if (!confirm('确定删除此消息吗？')) return;
                 conversationMessages.splice(msgIndex, 1);
                 msgDiv.remove();
                 const allMsgs = sidebar.querySelectorAll('#messages .message');
                 allMsgs.forEach((m, i) => { m.dataset.index = i; });
                 saveCurrentConversation();
             } else if (btn.classList.contains('tm-regenerate-msg-btn')) {
-                if (!confirm('确定重新生成此回复吗？')) return;
                 const userMsgIndex = msgIndex - 1;
                 if (userMsgIndex < 0) return;
                 const userMsg = conversationMessages[userMsgIndex];
@@ -1576,7 +1567,6 @@ import { fetchWithProxy } from './proxy-fetch.js';
                 alert('请选择要删除的提示词');
                 return;
             }
-            if (!confirm(`确定删除选中的 ${checkboxes.length} 个提示词吗？`)) return;
             const prompts = ConfigManager.getPrompts();
             const indices = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index)).sort((a, b) => b - a);
             indices.forEach(index => prompts.splice(index, 1));
@@ -1612,7 +1602,6 @@ import { fetchWithProxy } from './proxy-fetch.js';
                     </div>
                 `);
             } else if (e.target.classList.contains('tm-delete-btn')) {
-                if (!confirm('确定删除此提示词吗？')) return;
                 const prompts = ConfigManager.getPrompts();
                 prompts.splice(index, 1);
                 ConfigManager.savePrompts(prompts);
