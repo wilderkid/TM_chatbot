@@ -8,27 +8,23 @@ const CLOUDFLARE_WORKER_URL = 'https://aisiderbarproxy.wa631016583.workers.dev/'
 // 使用 GM_xmlhttpRequest 的降级方案（非流式，一次性返回）
 async function fetchWithGM(finalUrl, provider, requestData, callbacks) {
     const { onProgress, onComplete, onError } = callbacks;
-    
+
     console.log('[Proxy Debug] 使用 GM_xmlhttpRequest 降级方案（非流式）');
-    
+    console.log('[Proxy Debug] 直接请求目标 URL:', finalUrl);
+
     GM_xmlhttpRequest({
         method: 'POST',
-        url: CLOUDFLARE_WORKER_URL,
+        url: finalUrl,
         headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${provider.key}`,
         },
-        data: JSON.stringify({
-            url: finalUrl,
-            headers: {
-                'Authorization': `Bearer ${provider.key}`,
-            },
-            body: requestData,
-        }),
+        data: JSON.stringify(requestData),
         onload: (response) => {
             console.log('[Proxy Debug] GM 请求完成，状态码:', response.status);
             console.log('[Proxy Debug] GM 响应文本长度:', response.responseText?.length || 0);
             console.log('[Proxy Debug] GM 响应文本前500字符:', response.responseText?.substring(0, 500));
-            
+
             if (response.status !== 200) {
                 console.error('[Proxy Debug] GM 请求失败，状态码:', response.status);
                 onError(new Error(`HTTP error! status: ${response.status}`));
@@ -105,10 +101,34 @@ async function fetchWithGM(finalUrl, provider, requestData, callbacks) {
 
 export async function fetchWithProxy(finalUrl, provider, requestData, callbacks) {
     const { onProgress, onComplete, onError } = callbacks;
-    
+
     let fullContent = '';
     let reasoningContent = '';
-    
+
+    // 检测是否为本地地址
+    const isLocalhost = (url) => {
+        try {
+            const urlObj = new URL(url);
+            const hostname = urlObj.hostname.toLowerCase();
+            return hostname === 'localhost' ||
+                   hostname === '127.0.0.1' ||
+                   hostname.startsWith('192.168.') ||
+                   hostname.startsWith('10.') ||
+                   hostname.startsWith('172.16.') ||
+                   hostname === '[::1]' ||
+                   hostname.endsWith('.local');
+        } catch {
+            return false;
+        }
+    };
+
+    // 如果是本地地址，直接使用 GM_xmlhttpRequest，不走代理
+    if (isLocalhost(finalUrl)) {
+        console.log('[Proxy Debug] 检测到本地地址，直接使用 GM_xmlhttpRequest');
+        fetchWithGM(finalUrl, provider, requestData, callbacks);
+        return;
+    }
+
     console.log('[Proxy Debug] 使用 Cloudflare Worker 代理');
     console.log('[Proxy Debug] Worker URL:', CLOUDFLARE_WORKER_URL);
     console.log('[Proxy Debug] 目标 URL:', finalUrl);
@@ -203,22 +223,14 @@ export async function fetchWithProxy(finalUrl, provider, requestData, callbacks)
         }
 
         onComplete({ content: fullContent, reasoning: reasoningContent });
-        
+
     } catch (error) {
         console.error('[Proxy Debug] fetch 请求失败:', error);
-        
-        // 检查是否是 CSP 或网络错误，尝试降级到 GM_xmlhttpRequest
-        const errorMsg = error.message || '';
-        if (errorMsg.includes('CSP') ||
-            errorMsg.includes('Content Security Policy') ||
-            errorMsg.includes('Failed to fetch') ||
-            errorMsg.includes('violates') ||
-            error.name === 'TypeError') {
-            console.log('[Proxy Debug] 检测到 CSP/网络限制，切换到 GM_xmlhttpRequest');
-            fetchWithGM(finalUrl, provider, requestData, callbacks);
-            return; // 重要：防止继续执行
-        } else {
-            onError(error);
-        }
+
+        // 任何错误都尝试降级到 GM_xmlhttpRequest
+        // 因为 Cloudflare Worker 可能无法访问某些地址（如 localhost）
+        console.log('[Proxy Debug] 代理请求失败，切换到 GM_xmlhttpRequest 直接请求');
+        fetchWithGM(finalUrl, provider, requestData, callbacks);
+        return; // 重要：防止继续执行
     }
 }
