@@ -112,7 +112,9 @@ import { fetchWithProxy } from './proxy-fetch.js';
                 sidebar.style.setProperty('right', 'auto', 'important');
             }
             if (savedStyle.top) {
-                sidebar.style.setProperty('top', savedStyle.top, 'important');
+                // 限制top值不能小于0，防止sidebar被拖到视口顶部之外
+                const safeTop = Math.max(0, parseInt(savedStyle.top) || 0);
+                sidebar.style.setProperty('top', safeTop + 'px', 'important');
             }
         }
 
@@ -274,9 +276,11 @@ import { fetchWithProxy } from './proxy-fetch.js';
             }
             if (resizeType.includes('top')) {
                 const newHeight = startHeight - deltaY;
-                if (newHeight >= 200) {
+                const newTop = startTop + deltaY;
+                // 限制顶部不能超出视口（保留0作为安全边界）
+                if (newHeight >= 200 && newTop >= 0) {
                     sidebar.style.setProperty('height', newHeight + 'px', 'important');
-                    sidebar.style.setProperty('top', (startTop + deltaY) + 'px', 'important');
+                    sidebar.style.setProperty('top', newTop + 'px', 'important');
                 }
             }
             if (resizeType.includes('bottom')) {
@@ -311,7 +315,7 @@ import { fetchWithProxy } from './proxy-fetch.js';
             const deltaX = e.clientX - dragStartX;
             const deltaY = e.clientY - dragStartY;
             const newLeft = sidebarLeft + deltaX;
-            const newTop = sidebarTop + deltaY;
+            const newTop = Math.max(0, sidebarTop + deltaY); // 限制top不能小于0
             sidebar.style.setProperty('left', newLeft + 'px', 'important');
             sidebar.style.setProperty('top', newTop + 'px', 'important');
         });
