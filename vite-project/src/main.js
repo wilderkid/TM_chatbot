@@ -376,6 +376,7 @@ import { fetchWithProxy } from './proxy-fetch.js';
             list.textContent = '';
 
             providers.forEach((provider, index) => {
+                if (!provider) return; // Skip null providers
                 const item = document.createElement('div');
                 item.className = 'tm-provider-sidebar-item';
                 if (index === currentProviderIndex) {
@@ -423,6 +424,12 @@ import { fetchWithProxy } from './proxy-fetch.js';
             const providers = ConfigManager.getProviders();
             const provider = providers[index];
             const detail = sidebar.querySelector('#tm-provider-detail');
+
+            if (!provider) {
+                safeInnerHTML(detail, '<div class="tm-empty-state">供应商数据不存在，可能已被删除</div>');
+                return;
+            }
+
             const models = ConfigManager.getModels(index);
 
             safeInnerHTML(detail, `
@@ -512,6 +519,11 @@ import { fetchWithProxy } from './proxy-fetch.js';
         const fetchAvailableModels = async (index) => {
             const providers = ConfigManager.getProviders();
             const provider = providers[index];
+
+            if (!provider) {
+                alert('供应商数据不存在');
+                return;
+            }
 
             if (!provider.url || !provider.key) {
                 alert('请先配置API URL和API Key');
@@ -753,6 +765,7 @@ import { fetchWithProxy } from './proxy-fetch.js';
             modelDropdown.textContent = '';
 
             providers.forEach((provider, providerIndex) => {
+                if (!provider) return; // Skip null providers
                 const models = ConfigManager.getModels(providerIndex);
                 models.forEach(model => {
                     const item = document.createElement('div');
@@ -784,7 +797,9 @@ import { fetchWithProxy } from './proxy-fetch.js';
             const config = JSON.parse(currentSelectedModel);
             const providers = ConfigManager.getProviders();
             const provider = providers[config.provider];
-            modelNameSpan.textContent = `${provider.name} - ${config.model}`;
+            if (provider) {
+                modelNameSpan.textContent = `${provider.name} - ${config.model}`;
+            }
             modelDropdown.style.display = 'none';
             modelDisplayBtn.classList.remove('tm-open');
         });
@@ -1235,6 +1250,11 @@ import { fetchWithProxy } from './proxy-fetch.js';
             const providers = ConfigManager.getProviders();
             const provider = providers[config.provider];
 
+            if (!provider) {
+                alert('供应商不存在，请重新选择模型');
+                return;
+            }
+
             const aiMsg = document.createElement('div');
             aiMsg.className = 'tm-message tm-ai';
             aiMsg.textContent = 'AI正在输出...';
@@ -1423,6 +1443,11 @@ import { fetchWithProxy } from './proxy-fetch.js';
             const providers = ConfigManager.getProviders();
             const provider = providers[config.provider];
 
+            if (!provider) {
+                alert('供应商不存在，请重新选择模型');
+                return;
+            }
+
             const aiMsg = document.createElement('div');
             aiMsg.className = 'tm-message tm-ai';
             aiMsg.textContent = 'AI正在输出...';
@@ -1434,7 +1459,7 @@ import { fetchWithProxy } from './proxy-fetch.js';
 
             const finalUrl = normalizeApiUrl(provider.url);
             const apiMessages = buildApiMessages(conversationMessages, currentSystemPrompt, text);
-            
+
             const requestData = {
                 model: config.model,
                 messages: apiMessages,
@@ -1621,6 +1646,7 @@ import { fetchWithProxy } from './proxy-fetch.js';
             modelSelect.innerHTML = '<option value="">未设置</option>';
             const providers = ConfigManager.getProviders();
             providers.forEach((provider, providerIndex) => {
+                if (!provider) return; // Skip null providers
                 const models = ConfigManager.getModels(providerIndex);
                 models.forEach(model => {
                     const option = document.createElement('option');
@@ -1698,6 +1724,7 @@ import { fetchWithProxy } from './proxy-fetch.js';
             
             let hasModels = false;
             providers.forEach((provider, providerIndex) => {
+                if (!provider) return; // Skip null providers
                 const models = ConfigManager.getModels(providerIndex);
                 if (models.length > 0) hasModels = true;
                 models.forEach(model => {
@@ -1953,6 +1980,12 @@ import { fetchWithProxy } from './proxy-fetch.js';
             const config = JSON.parse(currentTranslateModel);
             const providers = ConfigManager.getProviders();
             const provider = providers[config.provider];
+
+            if (!provider) {
+                alert('供应商不存在，请重新选择模型');
+                return;
+            }
+
             const finalUrl = normalizeApiUrl(provider.url);
 
             output.value = '翻译中...';
